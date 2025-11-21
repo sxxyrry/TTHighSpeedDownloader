@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TT High Speed Downloader TT 高速下载器</title>
+  <script type="module" src="https://unpkg.com/sober@1.1.8/dist/main.js"></script>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <style>
+    body {
+      background: #181818;
+      margin: 10px;
+      font-family: Arial, sans-serif;
+    }
+
+    * {
+      color: #dbe2fa;
+    }
+
+    .bar {
+      display: grid;
+      align-items: center;
+      gap: 10px;
+      grid-template-columns: auto 1fr auto auto auto auto auto;
+    }
+
+    .bar .icon {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+    }
+
+    .bar .icon img {
+      border-radius: 50%;
+      width: 100%;
+      height: 100%;
+    }
+
+    .bar .title {
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+    .bar .empty {
+      flex-grow: 1;
+    }
+
+    .bar s-ripple {
+      color: #7f59da;
+      background: transparent;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 10px;
+      cursor: pointer;
+      border: #181818 solid 1px;
+    
+    }
+
+    .bar s-ripple:active {
+      border: #7f59da solid 1px;
+    }
+
+    .bar s-ripple p {
+      color: #8b8dee;
+      color: #dbe2fa;
+      margin: 0;
+    }
+
+    .main-content {
+      margin-top: 20px;
+      text-align: center;
+    }
+
+    .download-card {
+      background: #252525;
+      border-radius: 10px;
+      padding: 20px;
+      margin: 20px auto;
+      max-width: 600px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .task-form {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      text-align: left;
+    }
+
+    .form-group label {
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+
+    .form-group input {
+      padding: 10px;
+      border-radius: 5px;
+      border: 1px solid #5355cf;
+      background: #181818;
+      color: #fff;
+    }
+
+    .btn {
+      padding: 12px 20px;
+      border-radius: 5px;
+      border: none;
+      background: #5355cf3d;
+      border: #5355cf solid 1px;
+      color: rgb(161, 160, 255);
+      color: #d8d8d8;
+      color: #dbe2fa;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.3s;
+      margin: 5px 0;
+    }
+
+    .btn:hover {
+      background: #8059da65;
+    }
+
+    .btn:disabled {
+      background: #555;
+      cursor: not-allowed;
+    }
+
+    .delete-btn {
+      background: #ff4d4d3d;
+      border: #ff4d4d solid 1px;
+      padding: 8px 15px;
+      font-size: 14px;
+    }
+
+    .delete-btn:hover {
+      background: #ff4d4d36;
+    }
+
+    .progress-container {
+      margin: 20px 0;
+    }
+
+    .progress-bar {
+      height: 20px;
+      background: #181818;
+      border-radius: 10px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #5355cf, #7f59da);
+      border-radius: 10px;
+      transition: width 0.3s ease;
+      width: 0%;
+    }
+
+    .progress-text {
+      text-align: center;
+      margin-top: 10px;
+      font-size: 14px;
+    }
+
+    .checkmark-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100px;
+      margin: 20px 0;
+    }
+
+    .checkmark {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #5355cf;
+      animation: scaleCheck 0.5s ease-out;
+    }
+
+    .checkmark::after {
+      content: "";
+      width: 30px;
+      height: 15px;
+      border: solid white;
+      border-width: 3px 0 0 3px;
+      transform: rotate(180deg) rotate3d(1, 0, 0, 180deg) rotate3d(0, 0, 1, -135deg) translate(5px, 5px);
+    }
+
+    @keyframes scaleCheck {
+      0% {
+        transform: scale(0);
+      }
+      70% {
+        transform: scale(1.2);
+      }
+      100% {
+        transform: scale(1);
+      }
+    }
+
+    .status-text {
+      font-size: 18px;
+      font-weight: bold;
+      margin-top: 10px;
+    }
+
+    .download-item {
+      background: #2a2a2a;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 10px;
+      position: relative;
+    }
+
+    .download-info {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .download-progress {
+      height: 8px;
+      background: #181818;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .download-progress-fill {
+      height: 100%;
+      background: #5355cf;
+      width: 0%;
+      transition: width 0.3s;
+    }
+
+    .task-list {
+      margin-top: 20px;
+      text-align: left;
+    }
+
+    .task-list-inner {
+      min-height: 200px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .task-list-inner::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .task-list-inner::-webkit-scrollbar-track {
+      background: #181818;
+      border-radius: 4px;
+    }
+
+    .task-list-inner::-webkit-scrollbar-thumb {
+      background: #42446b;
+      border-radius: 4px;
+    }
+
+    .task-list-inner::-webkit-scrollbar-thumb:hover {
+      background: #5e4499;
+    }
+
+    .task-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    .add-task-btn {
+      background: #4CAF503B;
+      border: #4CAF50 solid 1px;
+    }
+
+    .add-task-btn:hover {
+      background: #13ee1e5d;
+    }
+
+    .task-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    .task-item {
+      background: #2a2a2a;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 10px;
+    }
+
+    .task-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .task-details {
+      margin-bottom: 10px;
+    }
+
+    .start-all-btn {
+      background: #698ef33b;
+      border: #6791eb solid 1px;
+    }
+
+    .start-all-btn:hover {
+      background: #6791eb65;
+    }
+
+    .start-all-btn:disabled {
+      background: #555;
+      cursor: not-allowed;
+    }
+
+    .clear-all-btn {
+      background: #ff4d4d3d;
+      border: #ff4d4d solid 1px;
+    }
+
+    .clear-all-btn:hover {
+      background: #ff666675;
+    }
+
+    .clear-all-btn2 {
+      background: #4d77ff3d;
+      border: #4d77ff solid 1px;
+    }
+
+    .clear-all-btn2:hover {
+      background: #4d77ff65;
+    }
+
+    .task-status {
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    .completed {
+      color: #4CAF50;
+    }
+
+    .downloading {
+      color: #5355cf;
+    }
+
+    .pending {
+      color: #FFC107;
+    }
+    
+    .error {
+      color: #ff4d4d;
+    }
+    
+    .error-message {
+      color: #ff4d4d;
+      font-size: 12px;
+      margin-top: 5px;
+    }
+
+    dialog {
+      border-radius: 10px;
+    }
+
+    .dialog-content {
+      padding: 20px;
+      background: #252525;
+      border-radius: 10px;
+      min-width: 300px;
+    }
+
+    .dialog-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="bar">
+      <span class="icon">
+        <img src="./assets/TTHSD.png" alt="Logo">
+      </span>
+      <span class="title">TT High Speed Downloader TT 高速下载器</span>
+      <div class="empty"></div>
+      <!-- <button class="minimize" @click="minimize"><p>最小化</p></button>
+      <button class="exit" @click="exit"><p>退出</p></button> -->
+      <s-ripple class="minimize" @click="minimize"><p>&nbsp;最小化&nbsp;</p></s-ripple>
+    <!-- <s-ripple class="maximize" onclick="window.pywebview.api.maximize();"><p>&nbsp;最大化&nbsp;</p></s-ripple> -->
+      <s-ripple class="about" @click="showInfoDialog"><p>&nbsp;关于&nbsp;</p></s-ripple>
+      <s-ripple class="versionlog" @click="showVersionLogDialog"><p>&nbsp;版本日志&nbsp;</p></s-ripple>
+      <s-ripple class="exit" @click="exit"><p>&nbsp;退出&nbsp;</p></s-ripple>
+    </div>
+
+    <div class="main-content">
+      <h1>TT HSD TT 高速下载器</h1>
+      
+      <div class="download-card">
+        <div v-if="!downloadStarted">
+          <h2>创建下载任务</h2>
+          
+          <div class="task-list">
+            <div class="task-header">
+              <h3>下载任务列表</h3>
+              <s-ripple class="btn add-task-btn" @click="addTask">&nbsp;+ 添加任务&nbsp;</s-ripple>
+            </div>
+            
+            <div class="task-list-inner">
+              <div v-if="tasks.length === 0">
+                <p>当前没有任务</p>
+              </div>
+
+              <div v-for="(task, index) in tasks" :key="index" class="task-item">
+                <div class="task-item-header">
+                  <span>任务 {{ index + 1 }}</span>
+                  <s-ripple class="btn delete-btn" @click="removeTask(index)">&nbsp;删除&nbsp;</s-ripple>
+                </div>
+                
+                <div class="task-details">
+                  <div class="form-group">
+                    <label :for="'url-' + index">下载链接:</label>
+                    <input :id="'url-' + index" type="text" v-model="task.url" placeholder="请输入下载链接">
+                  </div>
+                  <div class="form-group">
+                    <label :for="'savePath-' + index">保存路径:</label>
+                    <input :id="'savePath-' + index" type="text" v-model="task.savePath" placeholder="请输入保存路径">
+                  </div>
+                </div>
+                <div v-if="task.error" class="error-message">{{ task.error }}</div>
+              </div>
+            </div>
+
+          </div>
+          
+          <div class="task-actions">
+            <s-ripple class="start-all-btn btn" @click="startAllDownloads" :disabled="!canStartDownload">
+              &nbsp;开始所有下载&nbsp;
+            </s-ripple>
+            <s-ripple class="btn clear-all-btn" @click="clearAllTasks">&nbsp;清空所有任务&nbsp;</s-ripple>
+          </div>
+        </div>
+
+        <div v-else-if="downloadStarted && !downloadCompleted">
+          <h2>正在下载...</h2>
+          
+          <div class="progress-container">
+            <div class="progress-bar">
+              <div class="progress-fill" :style="{ width: overallProgress + '%' }"></div>
+            </div>
+            <div class="progress-text">{{ Math.round(overallProgress) }}%</div>
+            <div class="progress-text">{{ formatSpeed(overallSpeed) }}</div>
+          </div>
+          
+          <div class="task-list">
+            <h3>下载任务详情</h3>
+            <div v-for="(task, index) in tasks" :key="index" class="download-item">
+              <div class="download-info">
+                <span>{{ task.savePath.split('/').pop() || task.savePath.split('\\').pop() }}</span>
+                <span class="task-status" :class="getTaskStatusClass(task.status)">
+                  {{ getTaskStatusText(task.status) }}
+                </span>
+              </div>
+              
+              <div v-if="task.status !== 'pending' && task.status !== 'error'">
+                <div class="download-info">
+                  <span>{{ formatBytes(task.downloaded) }} / {{ formatBytes(task.total) }}</span>
+                  <span>{{ formatSpeed(task.speed) }}</span>
+                </div>
+                <div class="download-progress">
+                  <div class="download-progress-fill" :style="{ width: task.progress + '%' }"></div>
+                </div>
+              </div>
+              <div v-if="task.error" class="error-message">{{ task.error }}</div>
+            </div>
+          </div>
+          
+          <s-ripple class="btn clear-all-btn2" @click="cancelAllDownloads">&nbsp;取消所有下载&nbsp;</s-ripple>
+        </div>
+
+        <div v-else>
+          <h2>下载完成!</h2>
+          <div class="checkmark-container">
+            <div class="checkmark"></div>
+          </div>
+          <div class="status-text">所有文件已成功下载</div>
+          <button class="btn" @click="resetDownload" style="margin-top: 20px;">
+            返回首页
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <dialog id="infoDialog">
+    <div class="dialog-content">
+      <h2>关于 TT 高速下载器</h2>
+      <p>版本：<span id="version"></span></p>
+      <p>制作者：是星星与然然呀（ 23XR Studio ）</p>
+      <p>支持多线程下载和断点续传功能。</p>
+      <div class="dialog-actions">
+        <button class="btn" id="closeDialog_info">关闭</button>
+      </div>
+    </div>
+  </dialog>
+  <dialog id="versionLogDialog">
+    <div class="dialog-content">
+      <h2>版本日志</h2>
+      <pre id="versionLog"></pre>
+      <div class="dialog-actions">
+        <button class="btn" id="closeDialog_ver">关闭</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script>
+
+    const { createApp, ref } = Vue;
+
+    const version = ref('');
+    const versionLog = ref('');
+    
+    document.addEventListener('DOMContentLoaded', () => {
+      const dialog = document.getElementById('infoDialog');
+      const closeDialogBtn = document.getElementById('closeDialog_info');
+      
+      // 添加打开对话框的方法到 Vue 应用中
+      if (window.vueApp) {
+        window.vueApp.showInfoDialog = function() {
+          dialog.showModal();
+        };
+      }
+      
+      // 关闭对话框事件
+      closeDialogBtn.addEventListener('click', () => {
+        dialog.close();
+      });
+      
+      // 点击对话框外部关闭对话框
+      dialog.addEventListener('click', (event) => {
+        if (event.target === dialog) {
+          dialog.close();
+        }
+      });
+    });
+    document.addEventListener('DOMContentLoaded', () => {
+      const dialog = document.getElementById('versionLogDialog');
+      const closeDialogBtn = document.getElementById('closeDialog_ver');
+      
+      // 添加打开对话框的方法到 Vue 应用中
+      if (window.vueApp) {
+        window.vueApp.showVersionLogDialog = function() {
+          dialog.showModal();
+        };
+      }
+      
+      // 关闭对话框事件
+      closeDialogBtn.addEventListener('click', () => {
+        dialog.close();
+      });
+      
+      // 点击对话框外部关闭对话框
+      dialog.addEventListener('click', (event) => {
+        if (event.target === dialog) {
+          dialog.close();
+        }
+      });
+    });
+    // 全局进度更新处理函数
+    function handleProgressUpdate(data) {
+      if (window.vueApp) {
+        window.vueApp.handleProgressUpdate(data);
+      }
+    }
+    
+    const app = createApp({
+      data() {
+        return {
+          tasks: [],
+          downloadStarted: false,
+          downloadCompleted: false,
+          overallProgress: 0,
+          overallSpeed: 0,
+          taskIndexMap: {}, // 用于映射任务索引
+          version: '加载中...',
+          versionLog: '加载中...',
+          loadingVersion: true,
+          loadingVersionLog: true
+        }
+      },
+      computed: {
+        canStartDownload() {
+          return this.tasks.some(task => task.url && task.savePath);
+        }
+      },
+      methods: {
+        minimize() {
+          window.pywebview.api.minimize();
+        },
+        maximize() {
+          window.pywebview.api.maximize();
+        },
+        exit() {
+          window.pywebview.api.exit(0);
+        },
+        showInfoDialog() {
+          const dialog = document.getElementById('infoDialog');
+          if (dialog) {
+            dialog.showModal();
+          }
+        },
+        showVersionLogDialog() {
+          const dialog = document.getElementById('versionLogDialog');
+          if (dialog) {
+            dialog.showModal();
+          }
+        },
+        addTask() {
+          this.tasks.push({
+            url: '',
+            savePath: '',
+            status: 'pending',
+            progress: 0,
+            downloaded: 0,
+            total: 0,
+            speed: 0,
+            error: null
+          });
+        },
+        removeTask(index) {
+          this.tasks.splice(index, 1);
+        },
+        clearAllTasks() {
+          this.tasks = [{
+            url: '',
+            savePath: '',
+            status: 'pending',
+            progress: 0,
+            downloaded: 0,
+            total: 0,
+            speed: 0,
+            error: null
+          }];
+        },
+        startAllDownloads() {
+          if (this.tasks.length === 0) return;
+          // 过滤出有效的任务
+          const validTasks = this.tasks.filter(task => task.url && task.savePath);
+          
+          if (validTasks.length === 0) return;
+          
+          // 设置状态
+          this.downloadStarted = true;
+          this.downloadCompleted = false;
+          this.overallProgress = 0;
+          this.overallSpeed = 0;
+          
+          // 初始化任务状态
+          validTasks.forEach(task => {
+            task.status = 'pending';
+            task.progress = 0;
+            task.downloaded = 0;
+            task.total = 0;
+            task.speed = 0;
+            task.error = null;
+          });
+          
+          // 提取 URLs 和保存路径
+          const urls = validTasks.map(task => task.url);
+          const savePaths = validTasks.map(task => task.savePath);
+          
+          // 调用Python API开始下载
+          window.pywebview.api.download(urls, savePaths);
+        },
+        cancelAllDownloads() {
+          // 取消所有下载
+          this.downloadStarted = false;
+          this.downloadCompleted = false;
+        },
+        resetDownload() {
+          this.downloadStarted = false;
+          this.downloadCompleted = false;
+          this.overallProgress = 0;
+          this.overallSpeed = 0;
+          
+          // 重置任务状态
+          this.tasks.forEach(task => {
+            task.status = 'pending';
+            task.progress = 0;
+            task.downloaded = 0;
+            task.total = 0;
+            task.speed = 0;
+            task.error = null;
+          });
+        },
+        formatBytes(bytes) {
+          if (bytes === 0) return '0 Bytes';
+          const k = 1024;
+          const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+          const i = Math.floor(Math.log(bytes) / Math.log(k));
+          return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        },
+        formatSpeed(speed) {
+          return this.formatBytes(speed) + '/s';
+        },
+        getTaskStatusClass(status) {
+          return status;
+        },
+        getTaskStatusText(status) {
+          switch (status) {
+            case 'pending': return '待下载';
+            case 'downloading': return '下载中';
+            case 'completed': return '已完成';
+            case 'error': return '错误';
+            default: return '未知';
+          }
+        },
+        updateOverallProgress() {
+          if (this.tasks.length === 0) {
+            this.overallProgress = 0;
+            this.overallSpeed = 0;
+            return;
+          }
+          
+          const validTasks = this.tasks.filter(task => task.status !== 'pending' && task.status !== 'error');
+          if (validTasks.length === 0) {
+            this.overallProgress = 0;
+            this.overallSpeed = 0;
+            return;
+          }
+          
+          // 计算总体进度（基于已完成字节数）
+          const totalDownloaded = validTasks.reduce((sum, task) => sum + task.downloaded, 0);
+          const totalSize = validTasks.reduce((sum, task) => sum + task.total, 0);
+          this.overallProgress = totalSize > 0 ? (totalDownloaded / totalSize) * 100 : 0;
+          
+          // 计算总体速度
+          this.overallSpeed = validTasks.reduce((sum, task) => sum + task.speed, 0);
+          
+          // 检查是否所有任务都已完成
+          const allCompleted = this.tasks.every(task => task.status === 'completed' || task.status === 'error');
+          if (allCompleted && this.tasks.length > 0) {
+            this.downloadCompleted = true;
+          }
+        },
+        // 处理来自Python的进度更新
+        handleProgressUpdate(data) {
+          console.log('收到进度更新:', data);
+          
+          try {
+            const type = data.type;
+            const msgData = data.data || {};
+            
+            switch (type) {
+              case 'start':
+                // 总体开始下载
+                this.tasks.forEach(task => {
+                  if (task.url && task.savePath) {
+                    task.status = 'downloading';
+                  }
+                });
+                break;
+                
+              case 'startOne':
+                // 单个任务开始下载
+                const index = msgData.Index - 1; // 转换为0基索引
+                if (index >= 0 && index < this.tasks.length) {
+                  this.tasks[index].status = 'downloading';
+                  this.tasks[index].total = msgData.Total || 0;
+                  this.tasks[index].error = null;
+                }
+                break;
+                
+              case 'update':
+                // 进度更新
+                const progress = data.progress;
+                if (progress) {
+                  // 这里需要根据实际情况确定如何映射到具体任务
+                  // 简单处理：更新第一个正在下载的任务
+                  const downloadingTask = this.tasks.find(task => task.status === 'downloading');
+                  if (downloadingTask) {
+                    downloadingTask.downloaded = progress.downloaded;
+                    downloadingTask.total = progress.total;
+                    downloadingTask.speed = progress.speed;
+                    if (progress.total > 0) {
+                      downloadingTask.progress = (progress.downloaded / progress.total) * 100;
+                    }
+                  }
+                }
+                break;
+                
+              case 'endOne':
+                // 单个任务完成
+                const endIndex = msgData.Index - 1; // 转换为0基索引
+                if (endIndex >= 0 && endIndex < this.tasks.length) {
+                  this.tasks[endIndex].status = 'completed';
+                  this.tasks[endIndex].progress = 100;
+                }
+                break;
+                
+              case 'end':
+                // 所有任务完成
+                this.downloadCompleted = true;
+                break;
+                
+              case 'error':
+                // 错误处理
+                // 将错误信息显示在第一个任务上（简化处理）
+                if (this.tasks.length > 0) {
+                  this.tasks[0].status = 'error';
+                  this.tasks[0].error = msgData.Text || data.message || '未知错误';
+                }
+                break;
+                
+              case 'msg':
+                // 消息处理
+                if (msgData.Text && msgData.Text.includes('错误') || msgData.Text.includes('失败')) {
+                  // 将错误信息显示在第一个任务上（简化处理）
+                  if (this.tasks.length > 0) {
+                    this.tasks[0].status = 'error';
+                    this.tasks[0].error = msgData.Text;
+                  }
+                }
+                break;
+            }
+            
+            // 更新总体进度
+            this.updateOverallProgress();
+            
+          } catch (error) {
+            console.error('处理进度更新时出错:', error);
+          }
+        }
+      },
+      watch: {
+        tasks: {
+          handler() {
+            this.updateOverallProgress();
+          },
+          deep: true
+        }
+      },
+      mounted() {
+        // 将Vue实例保存到全局变量，供外部函数调用
+        window.vueApp = this; 
+        document.getElementById('version').innerText = '加载中...';
+        document.getElementById('versionLog').innerText = '加载中...';
+      },
+      beforeUnmount() {
+        // 清理全局引用
+        window.vueApp = null;
+      }
+    })
+    
+    app.mount('#app');
+
+    app.config.compilerOptions.isCustomElement = (tag) => {
+      return tag.startsWith('s-');
+    };
+
+// 替换原来的 setTimeout 代码块
+function initializeAPI() {
+  // 检查API是否已准备好
+  if (window.pywebview && window.pywebview.api) {
+    // 获取版本信息
+    window.pywebview.api.get_version().then(version_ => {
+      if (window.vueApp) {
+        window.vueApp.version = version_;
+        document.getElementById('version').innerText = window.vueApp.version;
+        window.vueApp.loadingVersion = false;
+      }
+    }).catch(error => {
+      if (window.vueApp) {
+        window.vueApp.version = '未知版本';
+        document.getElementById('version').innerText = window.vueApp.version;
+        window.vueApp.loadingVersion = false;
+      }
+    });
+    
+    // 获取版本日志
+    window.pywebview.api.get_versionLog().then(versionLog_ => {
+      if (window.vueApp) {
+        window.vueApp.versionLog = versionLog_;
+        document.getElementById('versionLog').innerText = window.vueApp.versionLog;
+        window.vueApp.loadingVersionLog = false;
+      }
+    }).catch(error => {
+      if (window.vueApp) {
+        window.vueApp.versionLog = '未知版本日志';
+        document.getElementById('versionLog').innerText = window.vueApp.versionLog;
+        window.vueApp.loadingVersionLog = false;
+      }
+    });
+  } else {
+    // 如果API还未准备好，稍后重试
+    setTimeout(initializeAPI, 100);
+  }
+}
+
+// 在Vue应用挂载后初始化API
+document.addEventListener('DOMContentLoaded', initializeAPI);
+  </script>
+</body>
+</html>

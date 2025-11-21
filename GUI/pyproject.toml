@@ -1,0 +1,15 @@
+[project]
+name = "FastDownloaderGUI"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "pywebview>=6.1",
+    "websockets>=15.0.1",
+]
+
+[dependency-groups]
+build = [
+    "pyinstaller>=6.16.0",
+]

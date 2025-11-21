@@ -1,0 +1,10 @@
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+
+build/*
+build/
+*.spec
+dist/*
+dist/
+.venv/
