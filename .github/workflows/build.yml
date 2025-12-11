@@ -105,10 +105,13 @@ jobs:
         ls -la TTHighSpeedDownloader_* || echo "No build artifacts found"
         
         # 检查特定架构的产物是否存在
+        ARTIFACT_FILE="TTHighSpeedDownloader_${{ matrix.arch }}${EXT}"
         if [[ "${{ matrix.arch }}" == "arm64" ]]; then
-          if [ ! -f "TTHighSpeedDownloader_arm64${EXT}" ]; then
-            echo "ARM64 build artifact missing"
+          if [ ! -f "$ARTIFACT_FILE" ]; then
+            echo "ARM64 build artifact missing: $ARTIFACT_FILE"
             exit 1
+          else
+            echo "ARM64 build artifact found: $ARTIFACT_FILE"
           fi
         fi
 
