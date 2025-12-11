@@ -87,8 +87,8 @@ jobs:
         if [[ "${{ matrix.os }}" == "windows-latest" && "${{ matrix.arch }}" == "arm64" ]]; then
           # 安装支持ARM64的MinGW-w64工具链
           choco install mingw --version=12.2.0
-          # 使用Go内置的ARM64 Windows支持
-          CGO_ENABLED=1 GOOS=windows GOARCH=arm64 CC=x86_64-w64-mingw32-gcc go build -v -buildmode=c-shared -o TTHighSpeedDownloader_${{ matrix.arch }}$EXT .
+          # 设置正确的交叉编译环境变量
+          CC=aarch64-w64-mingw32-gcc CGO_ENABLED=1 GOOS=windows GOARCH=arm64 go build -v -buildmode=c-shared -o TTHighSpeedDownloader_${{ matrix.arch }}$EXT .
         elif [[ "${{ matrix.os }}" == "ubuntu-latest" && "${{ matrix.arch }}" == "arm64" ]]; then
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu
