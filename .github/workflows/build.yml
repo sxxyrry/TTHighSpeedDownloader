@@ -1,0 +1,206 @@
+name: 打包/编译 应用
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      build_version:
+        description: '打包/编译版本 （例如 1.0.0）'
+        required: false
+        default: ''
+      confirm_build:
+        description: '确认打包/编译应用（输入 "yes" 确认）'
+        required: false
+        default: 'yes'
+
+jobs:
+  build-go:
+    name: 编译 Go 应用 (${{ matrix.arch }}) 在 ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        arch: [amd64, arm64]
+        include:
+          - os: windows-latest
+            ext: dll
+          - os: ubuntu-latest
+            ext: so
+          - os: macos-latest
+            ext: dylib
+    
+    steps:
+    - name: 检查用户确认打包/编译应用
+      if: github.event_name == 'workflow_dispatch' && github.event.inputs.confirm_build != 'yes'
+      run: |
+        echo "用户未确认打包/编译应用。跳过打包/编译。"
+        exit 0
+        
+    - name: 检出代码仓库
+      uses: actions/checkout@v4
+      
+    - name: 设置 Go 环境
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.21'
+        
+    - name: 设置环境变量
+      shell: bash
+      run: |
+        echo "GOOS=${{ matrix.os == 'windows-latest' && 'windows' || (matrix.os == 'ubuntu-latest' && 'linux' || 'darwin') }}" >> $GITHUB_ENV
+        echo "GOARCH=${{ matrix.arch }}" >> $GITHUB_ENV
+        
+    - name: 编译 Go 应用程序
+      shell: bash
+      run: |
+        EXT=""
+        case "${{ matrix.os }}" in
+          windows-latest)
+            EXT=".dll"
+            ;;
+          ubuntu-latest)
+            EXT=".so"
+            ;;
+          macos-latest)
+            EXT=".dylib"
+            ;;
+        esac
+        
+        CGO_ENABLED=1 GOOS=$GOOS GOARCH=$GOARCH go build -buildmode=c-shared -o TTHighSpeedDownloader_${{ matrix.arch }}$EXT downloader.go
+        echo "Compiled for $GOOS/$GOARCH: TTHighSpeedDownloader_${{ matrix.arch }}$EXT"
+        
+    - name: 上传编译产物
+      uses: actions/upload-artifact@v4
+      with:
+        name: go-binary-${{ matrix.os }}-${{ matrix.arch }}
+        path: TTHighSpeedDownloader_${{ matrix.arch }}.*
+        if-no-files-found: error
+
+  build-gui:
+    name: 编译 GUI 应用 (${{ matrix.platform }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        platform: [Windows, Linux, MacOS]
+    
+    steps:
+    - name: 检出代码仓库
+      uses: actions/checkout@v4
+      
+    - name: 设置 Python 环境
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        
+    - name: 安装 Nuitka
+      run: |
+        pip install nuitka
+        
+    - name: 下载所有Go二进制文件
+      uses: actions/download-artifact@v4
+      with:
+        path: ./downloaded-binaries
+        
+    - name: 整理二进制文件
+      run: |
+        mkdir -p binaries
+        find downloaded-binaries -name "*.dll" -o -name "*.so" -o -name "*.dylib" | while read file; do
+          cp "$file" binaries/
+        done
+        
+    - name: 编译 GUI 应用
+      run: |
+        # 复制二进制文件到GUI目录
+        cp -r binaries/* GUI/
+        
+        cd GUI
+        python build_Nuitka.py --platform ${{ matrix.platform }}
+        
+    - name: 上传GUI产物
+      uses: actions/upload-artifact@v4
+      with:
+        name: gui-${{ matrix.platform }}
+        path: GUI/dist/
+        if-no-files-found: error
+
+  package-final:
+    name: 打包最终发布版本
+    needs: [build-go, build-gui]
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 检出代码仓库
+      uses: actions/checkout@v4
+      
+    - name: 下载所有产物
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+        
+    - name: 创建发布包结构
+      run: |
+        mkdir -p release/packages
+        # 组织各平台的完整包
+        for platform in windows linux macos; do
+          mkdir -p "release/TTHighSpeedDownloader-$platform"
+        done
+        
+    - name: 解析版本号和构建号
+      id: parse_version
+      shell: python
+      run: |
+        import re
+        from datetime import datetime
+        from pathlib import Path
+        
+        # 默认版本
+        version = "1.0.0"
+        
+        # 如果提供了输入版本，则使用它
+        input_version = "${{ github.event.inputs.build_version }}"
+        if input_version and input_version.strip():
+            version = input_version.strip()
+                
+        # 生成构建号 (YYYYMMDD.HHMMSS)
+        build_number = datetime.now().strftime("%Y%m%d.%H%M%S")
+        
+        print(f"::set-output name=version::{version}")
+        print(f"::set-output name=build_number::{build_number}")
+        print(f"Version: {version}, Build: {build_number}")
+        
+    - name: 打包各平台完整发行版
+      run: |
+        VERSION=${{ steps.parse_version.outputs.version }}
+        BUILD_NUMBER=${{ steps.parse_version.outputs.build_number }}
+        FULL_VERSION="${VERSION}+${BUILD_NUMBER}"
+        
+        # Windows 版本
+        mkdir -p "release/TTHighSpeedDownloader-windows-$FULL_VERSION"
+        cp -r artifacts/gui-Windows/* "release/TTHighSpeedDownloader-windows-$FULL_VERSION/"
+        cp artifacts/go-binary-windows-latest-amd64/* "release/TTHighSpeedDownloader-windows-$FULL_VERSION/" 2>/dev/null || true
+        cp artifacts/go-binary-windows-latest-arm64/* "release/TTHighSpeedDownloader-windows-$FULL_VERSION/" 2>/dev/null || true
+        cd release && zip -r "packages/TTHighSpeedDownloader-windows-$FULL_VERSION.zip" "TTHighSpeedDownloader-windows-$FULL_VERSION"
+        
+        # Linux 版本
+        mkdir -p "release/TTHighSpeedDownloader-linux-$FULL_VERSION"
+        cp -r artifacts/gui-Linux/* "release/TTHighSpeedDownloader-linux-$FULL_VERSION/"
+        cp artifacts/go-binary-ubuntu-latest-amd64/* "release/TTHighSpeedDownloader-linux-$FULL_VERSION/" 2>/dev/null || true
+        cp artifacts/go-binary-ubuntu-latest-arm64/* "release/TTHighSpeedDownloader-linux-$FULL_VERSION/" 2>/dev/null || true
+        tar -czf "release/packages/TTHighSpeedDownloader-linux-$FULL_VERSION.tar.gz" -C release "TTHighSpeedDownloader-linux-$FULL_VERSION"
+        
+        # macOS 版本
+        mkdir -p "release/TTHighSpeedDownloader-macos-$FULL_VERSION"
+        cp -r artifacts/gui-MacOS/* "release/TTHighSpeedDownloader-macos-$FULL_VERSION/"
+        cp artifacts/go-binary-macos-latest-amd64/* "release/TTHighSpeedDownloader-macos-$FULL_VERSION/" 2>/dev/null || true
+        cp artifacts/go-binary-macos-latest-arm64/* "release/TTHighSpeedDownloader-macos-$FULL_VERSION/" 2>/dev/null || true
+        tar -czf "release/packages/TTHighSpeedDownloader-macos-$FULL_VERSION.tar.gz" -C release "TTHighSpeedDownloader-macos-$FULL_VERSION"
+        
+    - name: 上传最终发布包
+      uses: actions/upload-artifact@v4
+      with:
+        name: final-release-packages
+        path: release/packages/*
+        if-no-files-found: error

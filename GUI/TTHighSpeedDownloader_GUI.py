@@ -3,15 +3,15 @@ import os
 import pathlib
 import sys
 import time
-from turtle import onclick
 from typing import Literal, TypedDict
 import json
 import webview
 import uuid
 import threading
+import logging
+import configparser
 # from watchdog.observers import Observer
 # from watchdog.events import FileSystemEventHandler
-import logging
 
 
 # class FileChangeHandler(FileSystemEventHandler):
@@ -24,6 +24,54 @@ import logging
 #             # 刷新页面
 #             self.window.evaluate_js("location.reload();")
 
+def get_config_path():
+    """获取配置文件路径"""
+    if getattr(sys, 'frozen', False):
+        # 如果是打包后的exe文件
+        application_path = os.path.dirname(sys.executable)
+    else:
+        # 如果是开发环境的脚本文件
+        application_path = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(application_path, './config.cfg')
+
+def load_config():
+    """加载配置"""
+    config = configparser.ConfigParser()
+    config_path = get_config_path()
+    
+    # 如果配置文件不存在，创建默认配置
+    if not os.path.exists(config_path):
+        config['DOWNLOAD'] = {
+            'thread_count': '64',
+            'chunk_size_mb': '10'
+        }
+        with open(config_path, 'w') as configfile:
+            config.write(configfile)
+    else:
+        
+        config.read(config_path)
+        
+    return config
+
+def save_config(thread_count, chunk_size_mb):
+    """保存配置"""
+    config = configparser.ConfigParser()
+    config_path = get_config_path()
+    
+    # 如果配置文件已存在，先读取现有配置
+    if os.path.exists(config_path):
+        config.read(config_path)
+    
+    # 确保有 DOWNLOAD section
+    if 'DOWNLOAD' not in config:
+        config['DOWNLOAD'] = {}
+        
+    config['DOWNLOAD']['thread_count'] = str(thread_count)
+    config['DOWNLOAD']['chunk_size_mb'] = str(chunk_size_mb)
+    
+    with open(config_path, 'w') as configfile:
+        config.write(configfile)
+
 
 # 定义回调函数类型
 PROGRESS_CALLBACK = ctypes.CFUNCTYPE(None, ctypes.c_void_p, ctypes.c_void_p)
@@ -31,6 +79,8 @@ PROGRESS_CALLBACK = ctypes.CFUNCTYPE(None, ctypes.c_void_p, ctypes.c_void_p)
 # 加载 DLL/SO
 if os.name == 'nt':  # Windows
     lib = ctypes.CDLL('./TTHighSpeedDownloader.dll')
+elif sys.platform == 'darwin':  # MacOS
+    lib = ctypes.CDLL('./TTHighSpeedDownloader.dylib')
 else:  # Linux/Mac
     lib = ctypes.CDLL('./TTHighSpeedDownloader.so')
 
@@ -41,32 +91,18 @@ class Task(TypedDict):
 
 # 定义函数签名
 lib.startDownload.argtypes = [
+    ctypes.c_char_p,        # tasksData - JSON格式的任务数据
+    ctypes.c_int,           # taskCount - 任务数量
     ctypes.c_int,           # threadCount
     ctypes.c_int,           # chunkSizeMB
-    ctypes.c_char_p,        # urlStr
-    ctypes.c_char_p,        # savePath
     PROGRESS_CALLBACK,      # callback
     ctypes.c_bool,          # useCallbackURL
     ctypes.c_char_p,        # remoteCallbackUrl
     ctypes.POINTER(ctypes.c_bool),  # useSocket
 ]
-lib.startMultiDownload.argtypes = [
-    ctypes.POINTER(ctypes.c_char_p), # urls - URL数组
-    ctypes.c_int,                    # urlCount - URL数量
-    ctypes.POINTER(ctypes.c_char_p), # savePaths - 保存路径数组
-    ctypes.c_int,                    # pathCount - 路径数量
-    ctypes.c_int,                    # threadCount
-    ctypes.c_int,                    # chunkSizeMB
-    PROGRESS_CALLBACK,               # callback
-    ctypes.c_bool,                   # useCallbackURL
-    ctypes.c_char_p,                 # remoteCallbackUrl
-    ctypes.POINTER(ctypes.c_bool),   # useSocket
-]
 lib.getDownloader.argtypes = [
-    ctypes.POINTER(ctypes.c_char_p), # urls - URL数组
-    ctypes.c_int,                    # urlCount - URL数量
-    ctypes.POINTER(ctypes.c_char_p), # savePaths - 保存路径数组
-    ctypes.c_int,                    # pathCount - 路径数量
+    ctypes.c_char_p,                 # tasksData - JSON格式的任务数据
+    ctypes.c_int,                    # taskCount - 任务数量
     ctypes.c_int,                    # threadCount
     ctypes.c_int,                    # chunkSizeMB
 ]
@@ -77,7 +113,7 @@ lib.pauseDownload.restype = ctypes.c_int
 
 lib.resumeDownload.argtypes = [ctypes.c_int]  # id
 lib.resumeDownload.restype = ctypes.c_int
-lib.startDownload.restype, lib.startMultiDownload.restype = ctypes.c_int, ctypes.c_int
+lib.startDownload.restype = ctypes.c_int
 
 # 定义进度回调函数
 last_downloaded = 0
@@ -209,33 +245,47 @@ def RunDownload(urls: list[str], savepaths: list[str]):
         # 正确处理useSocket参数
         use_socket_val = ctypes.c_bool(False)
         
-        burls: list[bytes] = [bytes(url, encoding='utf-8') for url in urls]
-        bsavepaths: list[bytes] = [bytes(path, encoding='utf-8') for path in savepaths]
+        # 加载配置
+        config = load_config()
+        thread_count = config.getint('DOWNLOAD', 'thread_count', fallback=64)
+        chunk_size_mb = config.getint('DOWNLOAD', 'chunk_size_mb', fallback=10)
+        
+        # 构造任务数据
+        tasks = []
+        for i in range(len(urls)):
+            task = {
+                "URL": urls[i],
+                "SavePath": savepaths[i],
+                "ShowName": savepaths[i].split('/')[-1] if '/' in savepaths[i] else savepaths[i].split('\\')[-1],
+                "ID": str(uuid.uuid4())
+            }
+            tasks.append(task)
+        
+        # 将任务数据转换为JSON字符串
+        tasks_json = json.dumps(tasks, ensure_ascii=False)
+        b_tasks_json = tasks_json.encode('utf-8')
+        
+        # 准备参数
+        tasks_data = ctypes.c_char_p(b_tasks_json)
+        task_count = ctypes.c_int(len(tasks))
 
-        # 创建 ctypes 字符串数组
-        url_array = (ctypes.c_char_p * len(burls))(*burls)
-        path_array = (ctypes.c_char_p * len(bsavepaths))(*bsavepaths)
-
-        # 修改 startMultiDownload 调用部分
-        result = lib.startMultiDownload(
-            url_array,  # urlStrs
-            len(burls),  # urlCount
-            path_array,  # savePaths
-            len(bsavepaths),  # pathCount
-            64,  # threadCount
-            10,  # chunkSizeMB
-            progress_cb,  # callback
-            False, # useCallbackURL
-            None,  # remoteCallbackUrl
-            ctypes.byref(use_socket_val), # useSocket
+        # 调用Go函数（新的接口）
+        result = lib.startDownload(
+            tasks_data,         # tasksData - JSON格式的任务数据
+            task_count,         # taskCount - 任务数量
+            ctypes.c_int(thread_count),    # threadCount
+            ctypes.c_int(chunk_size_mb),   # chunkSizeMB
+            progress_cb,        # callback
+            False,              # useCallbackURL
+            None,               # remoteCallbackUrl
+            ctypes.byref(use_socket_val)  # useSocket
         )
         print()
         end_time = time.time()
         print(f"下载结果：{result}")
         print(f"下载时间：{end_time - start_time:.2f} 秒")
         if result > 0:
-            # 调用pauseDownload来清理资源（根据FastDownloader实现，pauseDownload会清理下载器）
-            
+            # 调用pauseDownload来清理资源
             cleanup_result = lib.pauseDownload(result)
             if cleanup_result != 0:
                 print(f"警告：清理下载器资源失败，ID: {result}")
@@ -260,23 +310,18 @@ def RunDownload(urls: list[str], savepaths: list[str]):
 
 def main():
 
-    with open(os.path.join(pathlib.Path(__file__).parent.resolve(), './VersionLog.txt'), 'r', encoding='utf-8') as file:
-        versionLog: str = file.read()
+    with open(os.path.join(pathlib.Path(__file__).parent.resolve(), './VersionHistory.txt'), 'r', encoding='utf-8') as file:
+        versionHistory: str = file.read()
     
         version = ''
 
-        for item in versionLog.split('\n'):
+        for item in versionHistory.split('\n'):
             if item.endswith(' V:'):
                 version: str = item.split(' V:')[0]
-                break
 
     class Api:
         def download(self, urls, savepaths):
             print("开始下载...")
-            # 添加实际下载逻辑
-            # 示例下载地址和路径
-            # urls = ["https://httpbin.org/json"]  # 替换为实际URL
-            # savepaths = ["./downloaded_file.json"]  # 替换为实际保存路径
             
             # 在新线程中运行下载，避免阻塞UI
             def run_download():
@@ -302,11 +347,25 @@ def main():
             window.destroy()
             os._exit(status=status)
 
-        def get_version(self):
+        def get_Version(self):
             return version
         
-        def get_versionLog(self):
-            return versionLog
+        def get_VersionHistory(self):
+            return versionHistory
+
+        def get_Config(self):
+            """获取配置"""
+            config = load_config()
+            return {
+                'thread_count': config.getint('DOWNLOAD', 'thread_count', fallback=64),
+                'chunk_size_mb': config.getint('DOWNLOAD', 'chunk_size_mb', fallback=10)
+            }
+
+        def save_Config(self, thread_count, chunk_size_mb):
+            """保存配置"""
+            save_config(thread_count, chunk_size_mb)
+            return True
+
 
     # 在创建webview窗口时注册API
     api = Api()
@@ -316,8 +375,9 @@ def main():
         width=850,
         height=850,
         js_api=api,
-        frameless=True,
-        text_select=False
+        # frameless=True,
+        # text_select=False,
+        text_select=True,
     )
     
     # 设置回调窗口引用
@@ -326,8 +386,7 @@ def main():
     # window
 
     running = True
-
-    # 启动文件监控线程
+    # # 启动文件监控线程
     # def start_file_watcher():
     #     event_handler = FileChangeHandler(window)
     #     observer = Observer()
@@ -344,7 +403,14 @@ def main():
     # watcher_thread = threading.Thread(target=start_file_watcher, daemon=True)
     # watcher_thread.start()
     
-    webview.start(icon=os.path.join(pathlib.Path(__file__).parent.resolve(), './files/assets/TTHSD.ico'))
+    load_config()
+
+    webview.start(
+        icon=os.path.join(pathlib.Path(__file__).parent.resolve(), './files/assets/TTHSD.ico'),
+        debug=True,
+    )
+
+    os._exit(0)
 
     # webview.overrideredirect(True)
        

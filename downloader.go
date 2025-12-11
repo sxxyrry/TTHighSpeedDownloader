@@ -21,6 +21,7 @@ type DownloadTask struct {
     URL      string // 下载链接
     SavePath string // 保存路径
     ShowName string // 显示名称
+    ID       string // ID
 }
 
 // DownloadConfig 下载配置
@@ -32,6 +33,7 @@ type DownloadConfig struct {
     useCallbackURL bool
     CallbackURL    *string
     useSocket      *bool
+    ShowName       string
 }
 
 // DownloadChunk 下载块信息
@@ -56,8 +58,10 @@ const (
 
 // Event 下载事件
 type Event struct {
-    Type EventType
-    Name string
+    Type      EventType
+    Name      string
+    ShowName  string
+    ID        string
 }
 
 // ProgressEvent 用于传输进度更新的数据
@@ -68,18 +72,18 @@ type ProgressEvent struct {
 
 // FastDownloader 高速下载器
 type FastDownloader struct {
-    config         *DownloadConfig
-    totalSize      int64
-    downloaded     int64
-    lastDownloaded int64
-    startTime      time.Time
-    chunks         []DownloadChunk
-    client         *http.Client
-    wsClient       *WebSocketClient
-    socketClient   *SocketClient
-    mutex          sync.Mutex
-    cancel         context.CancelFunc
-    currentTaskIndex int           // 当前下载的任务索引
+    config            *DownloadConfig
+    totalSize         int64
+    downloaded        int64
+    lastDownloaded    int64
+    startTime         time.Time
+    chunks            []DownloadChunk
+    client            *http.Client
+    wsClient          *WebSocketClient
+    socketClient      *SocketClient
+    mutex             sync.Mutex
+    cancel            context.CancelFunc
+    currentTaskIndex  int           // 当前下载的任务索引
 }
 
 // GetDownloader 创建新的下载器实例（支持多个任务）
@@ -125,6 +129,7 @@ func (fd *FastDownloader) StartDownload() error {
     SendMessage(fd, Event{
         Type: EventTypeStart,
         Name: "开始下载",
+        ShowName: "全局",
     }, map[string]interface{}{})
 
     // 顺序下载每个任务
@@ -135,6 +140,8 @@ func (fd *FastDownloader) StartDownload() error {
         SendMessage(fd, Event{
             Type: EventTypeStartOne,
             Name: "开始一个下载",
+            ShowName: task.ShowName,
+            ID: task.ID,
         }, map[string]interface{}{
             "URL": task.URL,
             "SavePath": task.SavePath,
@@ -148,6 +155,8 @@ func (fd *FastDownloader) StartDownload() error {
             SendMessage(fd, Event{
                 Type: EventTypeMsg,
                 Name: "错误",
+                ShowName: task.ShowName,
+                ID: task.ID,
             }, map[string]interface{}{
                 "Text": fmt.Sprintf("下载文件失败 %s: %v", task.URL, err),
             })
@@ -162,6 +171,8 @@ func (fd *FastDownloader) StartDownload() error {
         SendMessage(fd, Event{
             Type: EventTypeEndOne,
             Name: "结束一个下载",
+            ShowName: task.ShowName,
+            ID: task.ID,
         }, map[string]interface{}{
             "URL": task.URL,
             "SavePath": task.SavePath,
@@ -174,6 +185,7 @@ func (fd *FastDownloader) StartDownload() error {
     SendMessage(fd, Event{
         Type: EventTypeEnd,
         Name: "结束所有下载",
+        ShowName: "全局",
     }, map[string]interface{}{})
     
     return nil
@@ -182,11 +194,13 @@ func (fd *FastDownloader) StartDownload() error {
 // startSingleDownload 执行单个文件下载
 func (fd *FastDownloader) startSingleDownload(task DownloadTask) error {
     // 获取文件大小
-    size, err := fd.getFileSize(task.URL)
+    size, err := fd.getFileSize(task.URL, task)
     if err != nil {
         SendMessage(fd, Event{
             Type: EventTypeMsg,
             Name: "错误",
+            ShowName: task.ShowName,
+            ID: task.ID,
         }, map[string]interface{}{
             "Text": fmt.Sprintf("获取文件大小失败: %v", err),
         })
@@ -212,6 +226,8 @@ func (fd *FastDownloader) startSingleDownload(task DownloadTask) error {
         SendMessage(fd, Event{
             Type: EventTypeMsg,
             Name: "警告",
+            ShowName: task.ShowName,
+            ID: task.ID,
         }, map[string]interface{}{
             "Text": fmt.Sprintf("警告: 分块大小(%d MB)超过文件大小(%d bytes)，切换为单线程运行", fd.config.ChunkSizeMB, fd.totalSize),
         })
@@ -230,6 +246,8 @@ func (fd *FastDownloader) startSingleDownload(task DownloadTask) error {
         SendMessage(fd, Event{
             Type: EventTypeMsg,
             Name: "错误",
+            ShowName: task.ShowName,
+            ID: task.ID,
         }, map[string]interface{}{
             "Text": fmt.Sprintf("创建文件失败: %v", err),
         })
@@ -242,6 +260,8 @@ func (fd *FastDownloader) startSingleDownload(task DownloadTask) error {
         SendMessage(fd, Event{
             Type: EventTypeMsg,
             Name: "错误",
+            ShowName: task.ShowName,
+            ID: task.ID,
         }, map[string]interface{}{
             "Text": fmt.Sprintf("设置文件大小失败: %v", err),
         })
@@ -250,7 +270,7 @@ func (fd *FastDownloader) startSingleDownload(task DownloadTask) error {
     
     // 通知开始下载
     fd.startTime = time.Now()
-    fd.notifyProgress(0, 0)
+    fd.notifyProgress(0, 0, task)
     
     // 移除超时控制，直接创建上下文
     ctx := context.Background()
@@ -263,7 +283,7 @@ func (fd *FastDownloader) startSingleDownload(task DownloadTask) error {
         wg.Add(1)
         go func(chunkIndex int) {
             defer wg.Done()
-            if err := fd.downloadChunk(ctx, file, chunkIndex, task.URL); err != nil {
+            if err := fd.downloadChunk(ctx, file, chunkIndex, task.URL, task); err != nil {
                 select {
                 case errChan <- err:
                 default:
@@ -282,12 +302,12 @@ func (fd *FastDownloader) startSingleDownload(task DownloadTask) error {
     }
     
     // 通知下载完成
-    fd.notifyProgress(fd.totalSize, fd.downloaded)
+    fd.notifyProgress(fd.totalSize, fd.downloaded, task)
     return nil
 }
 
 // getFileSize 获取文件大小
-func (fd *FastDownloader) getFileSize(url string) (int64, error) {
+func (fd *FastDownloader) getFileSize(url string, task DownloadTask) (int64, error) {
     req, err := http.NewRequest("HEAD", url, nil)
     if err != nil {
         return 0, err
@@ -303,6 +323,8 @@ func (fd *FastDownloader) getFileSize(url string) (int64, error) {
         SendMessage(fd, Event {
             Type: EventTypeMsg,
             Name: "错误",
+            ShowName: task.ShowName,
+            ID: task.ID,
         }, map[string]interface{}{
             "Text": fmt.Sprintf("HTTP错误: %d\n", resp.StatusCode),
         })
@@ -314,6 +336,7 @@ func (fd *FastDownloader) getFileSize(url string) (int64, error) {
         SendMessage(fd, Event {
             Type: EventTypeMsg,
             Name: "错误",
+            ShowName: task.ShowName,
         }, map[string]interface{}{
             "Text": fmt.Sprintf("无法获取文件大小:%d\n", resp.StatusCode),
         })
@@ -325,6 +348,8 @@ func (fd *FastDownloader) getFileSize(url string) (int64, error) {
         SendMessage(fd, Event {
             Type: EventTypeMsg,
             Name: "错误",
+            ShowName: task.ShowName,
+            ID: task.ID,
         }, map[string]interface{}{
             "Text": fmt.Sprintf("解析文件大小失败:%v\n", err),
         })
@@ -361,7 +386,7 @@ func (fd *FastDownloader) initChunks() {
 }
 
 // downloadChunk 下载指定块
-func (fd *FastDownloader) downloadChunk(ctx context.Context, file *os.File, chunkIndex int, url string) error {
+func (fd *FastDownloader) downloadChunk(ctx context.Context, file *os.File, chunkIndex int, url string, task DownloadTask) error {
     chunk := &fd.chunks[chunkIndex]
     if chunk.Done {
         return nil
@@ -372,6 +397,8 @@ func (fd *FastDownloader) downloadChunk(ctx context.Context, file *os.File, chun
         SendMessage(fd, Event {
             Type: EventTypeMsg,
             Name: "错误",
+            ShowName: task.ShowName,
+            ID: task.ID,
         }, map[string]interface{}{
             "Text": fmt.Sprintf("创建块请求失败:%d: %v\n", chunkIndex, err),
         })
@@ -386,6 +413,7 @@ func (fd *FastDownloader) downloadChunk(ctx context.Context, file *os.File, chun
         SendMessage(fd, Event {
             Type: EventTypeMsg,
             Name: "错误",
+            ShowName: task.ShowName,
         }, map[string]interface{}{
             "Text": fmt.Sprintf("下载块失败:%d: %v\n", chunkIndex, err),
         })
@@ -397,6 +425,8 @@ func (fd *FastDownloader) downloadChunk(ctx context.Context, file *os.File, chun
         SendMessage(fd, Event {
             Type: EventTypeMsg,
             Name: "错误",
+            ShowName: task.ShowName,
+            ID: task.ID,
         }, map[string]interface{}{
             "Text": fmt.Sprintf("下载块失败:%d: HTTP错误: %d\n", chunkIndex, resp.StatusCode),
         })
@@ -432,7 +462,7 @@ func (fd *FastDownloader) downloadChunk(ctx context.Context, file *os.File, chun
             if currentDownloaded > fd.totalSize {
                 currentDownloaded = fd.totalSize
             }
-            fd.notifyProgress(fd.totalSize, currentDownloaded)
+            fd.notifyProgress(fd.totalSize, currentDownloaded, task)
         }
         
         if err == io.EOF {
@@ -448,7 +478,7 @@ func (fd *FastDownloader) downloadChunk(ctx context.Context, file *os.File, chun
 }
 
 // notifyProgress 通知进度更新
-func (fd *FastDownloader) notifyProgress(total int64, downloaded int64) {
+func (fd *FastDownloader) notifyProgress(total int64, downloaded int64, task DownloadTask) {
     var speed float64
     elapsed := time.Since(fd.startTime).Seconds()
 
@@ -466,7 +496,9 @@ func (fd *FastDownloader) notifyProgress(total int64, downloaded int64) {
     
     SendMessage(fd, Event {
         Type: EventTypeUpdate,
-        Name: "update",
+        Name: "更新",
+        ShowName: task.ShowName,
+        ID: task.ID,
     }, map[string]interface{}{
         "Total": total,
         "Added": added,

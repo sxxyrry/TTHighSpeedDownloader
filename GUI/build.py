@@ -8,7 +8,7 @@ def build():
 
     args = ['./TTHighSpeedDownloader_GUI.py', '--onefile', '--windowed', '--icon', icon_path]
 
-    files = ['./TTHighSpeedDownloader.dll', './VersionLog.txt']
+    files = ['./TTHighSpeedDownloader.dll', './VersionHistory.txt']
     folders = [('./files/', 'files')]
 
     for file in files:

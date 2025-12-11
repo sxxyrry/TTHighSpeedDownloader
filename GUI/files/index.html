@@ -21,7 +21,7 @@
       display: grid;
       align-items: center;
       gap: 10px;
-      grid-template-columns: auto 1fr auto auto auto auto auto;
+      grid-template-columns: auto 1fr auto auto auto auto;
     }
 
     .bar .icon {
@@ -385,6 +385,13 @@
       gap: 10px;
       margin-top: 20px;
     }
+
+    #VersionHistory {
+      font-size: 15px;
+      min-height: 100px;
+      max-height: 100px;
+      overflow-y: scroll;
+    }
   </style>
 </head>
 <body>
@@ -397,11 +404,12 @@
       <div class="empty"></div>
       <!-- <button class="minimize" @click="minimize"><p>最小化</p></button>
       <button class="exit" @click="exit"><p>退出</p></button> -->
-      <s-ripple class="minimize" @click="minimize"><p>&nbsp;最小化&nbsp;</p></s-ripple>
+      <!-- <s-ripple class="minimize" @click="minimize"><p>&nbsp;最小化&nbsp;</p></s-ripple> -->
     <!-- <s-ripple class="maximize" onclick="window.pywebview.api.maximize();"><p>&nbsp;最大化&nbsp;</p></s-ripple> -->
       <s-ripple class="about" @click="showInfoDialog"><p>&nbsp;关于&nbsp;</p></s-ripple>
-      <s-ripple class="versionlog" @click="showVersionLogDialog"><p>&nbsp;版本日志&nbsp;</p></s-ripple>
-      <s-ripple class="exit" @click="exit"><p>&nbsp;退出&nbsp;</p></s-ripple>
+      <s-ripple class="versionlog" @click="showVersionHistoryDialog"><p>&nbsp;版本历史&nbsp;</p></s-ripple>
+      <s-ripple class="config" @click="showConfigDialog"><p>&nbsp;配置&nbsp;</p></s-ripple>
+      <!-- <s-ripple class="exit" @click="exit"><p>&nbsp;退出&nbsp;</p></s-ripple> -->
     </div>
 
     <div class="main-content">
@@ -448,7 +456,7 @@
             <s-ripple class="start-all-btn btn" @click="startAllDownloads" :disabled="!canStartDownload">
               &nbsp;开始所有下载&nbsp;
             </s-ripple>
-            <s-ripple class="btn clear-all-btn" @click="clearAllTasks">&nbsp;清空所有任务&nbsp;</s-ripple>
+            <s-ripple class="btn clear-all-btn" @click="clearAllTasks">&nbsp;清除所有任务&nbsp;</s-ripple>
           </div>
         </div>
 
@@ -508,18 +516,38 @@
       <h2>关于 TT 高速下载器</h2>
       <p>版本：<span id="version"></span></p>
       <p>制作者：是星星与然然呀（ 23XR Studio ）</p>
-      <p>支持多线程下载和断点续传功能。</p>
+      <p>支持多线程下载和分块。</p>
       <div class="dialog-actions">
         <button class="btn" id="closeDialog_info">关闭</button>
       </div>
     </div>
   </dialog>
-  <dialog id="versionLogDialog">
+  <dialog id="VersionHistoryDialog">
     <div class="dialog-content">
-      <h2>版本日志</h2>
-      <pre id="versionLog"></pre>
+      <h2>版本历史</h2>
+      <pre id="VersionHistory"></pre>
       <div class="dialog-actions">
-        <button class="btn" id="closeDialog_ver">关闭</button>
+        <button class="btn" id="closeDialog_VerHis">关闭</button>
+      </div>
+    </div>
+  </dialog>
+  <dialog id="ConfigDialog">
+    <div class="dialog-content">
+      <h2>配置</h2>
+      <!-- <pre id="VersionConfig"></pre> -->
+       <form action="">
+        <div class="form-group">
+          <label for="ThreadCount">线程数（默认64）：</label>
+          <input type="number" id="ThreadCount" v-model="ThreadCount" min="1" />
+        </div>
+        <div class="form-group">
+          <label for="chunkSizeMB">分块大小（ MB ）（默认10）：</label>
+          <input type="number" id="chunkSizeMB" v-model="chunkSizeMB" min="1" />
+        </div>
+      </form>
+      <p style="color: rgb(121, 121, 121);">提示：如果你看到的输入框是空，那就是默认</p>
+      <div class="dialog-actions">
+        <button class="btn" id="closeDialog_Config">关闭</button>
       </div>
     </div>
   </dialog>
@@ -529,7 +557,11 @@
     const { createApp, ref } = Vue;
 
     const version = ref('');
-    const versionLog = ref('');
+    const versionHistory = ref('');
+    const ThreadCount = ref(64);
+    window.ThreadCount = ThreadCount
+    const chunkSizeMB = ref(10);
+    window.chunkSizeMB = chunkSizeMB
     
     document.addEventListener('DOMContentLoaded', () => {
       const dialog = document.getElementById('infoDialog');
@@ -555,12 +587,12 @@
       });
     });
     document.addEventListener('DOMContentLoaded', () => {
-      const dialog = document.getElementById('versionLogDialog');
-      const closeDialogBtn = document.getElementById('closeDialog_ver');
+      const dialog = document.getElementById('VersionHistoryDialog');
+      const closeDialogBtn = document.getElementById('closeDialog_VerHis');
       
       // 添加打开对话框的方法到 Vue 应用中
       if (window.vueApp) {
-        window.vueApp.showVersionLogDialog = function() {
+        window.vueApp.showVersionHistoryDialog = function() {
           dialog.showModal();
         };
       }
@@ -577,6 +609,48 @@
         }
       });
     });
+    document.addEventListener('DOMContentLoaded', () => {
+      const dialog = document.getElementById('ConfigDialog');
+      const closeDialogBtn = document.getElementById('closeDialog_Config');
+      
+      // 添加打开对话框的方法到 Vue 应用中
+      if (window.vueApp) {
+        window.vueApp.showVersionHistoryDialog = function() {
+          dialog.showModal();
+        };
+      }
+      
+      // 关闭对话框事件
+      closeDialogBtn.addEventListener('click', () => {
+        dialog.close();
+        // 保存配置
+        window.pywebview.api.save_Config(
+          window.ThreadCount.value, 
+          window.chunkSizeMB.value
+        ).then(() => {
+          console.log('配置已保存');
+        }).catch(error => {
+          console.error('保存配置失败:', error);
+        });
+      });
+      
+      // 点击对话框外部关闭对话框
+      dialog.addEventListener('click', (event) => {
+        if (event.target === dialog) {
+          // 保存配置
+          window.pywebview.api.save_Config(
+            window.ThreadCount.value, 
+            window.chunkSizeMB.value
+          ).then(() => {
+            console.log('配置已保存');
+          }).catch(error => {
+            console.error('保存配置失败:', error);
+          });
+          dialog.close();
+        }
+      });
+    });
+
     // 全局进度更新处理函数
     function handleProgressUpdate(data) {
       if (window.vueApp) {
@@ -620,8 +694,14 @@
             dialog.showModal();
           }
         },
-        showVersionLogDialog() {
-          const dialog = document.getElementById('versionLogDialog');
+        showVersionHistoryDialog() {
+          const dialog = document.getElementById('VersionHistoryDialog');
+          if (dialog) {
+            dialog.showModal();
+          }
+        },
+        showConfigDialog() {
+          const dialog = document.getElementById('ConfigDialog');
           if (dialog) {
             dialog.showModal();
           }
@@ -642,16 +722,7 @@
           this.tasks.splice(index, 1);
         },
         clearAllTasks() {
-          this.tasks = [{
-            url: '',
-            savePath: '',
-            status: 'pending',
-            progress: 0,
-            downloaded: 0,
-            total: 0,
-            speed: 0,
-            error: null
-          }];
+          this.tasks = [];
         },
         startAllDownloads() {
           if (this.tasks.length === 0) return;
@@ -855,7 +926,22 @@
         // 将Vue实例保存到全局变量，供外部函数调用
         window.vueApp = this; 
         document.getElementById('version').innerText = '加载中...';
-        document.getElementById('versionLog').innerText = '加载中...';
+        document.getElementById('VersionHistory').innerText = '加载中...';
+        // document.getElementById('ThreadCount').value = '加载中...';
+        // document.getElementById('chunkSizeMB').value = '加载中...';
+
+        // 加载配置
+        if (window.pywebview && window.pywebview.api) {
+          window.pywebview.api.get_Config().then(config => {
+            // console
+            window.ThreadCount.value = config.thread_count;
+            window.chunkSizeMB.value = config.chunk_size_mb;
+            // document.getElementById('ThreadCount').value = config.thread_count;
+            // document.getElementById('chunkSizeMB').value = config.chunk_size_mb;
+          }).catch(error => {
+            console.error('加载配置失败:', error);
+          });
+        }
       },
       beforeUnmount() {
         // 清理全局引用
@@ -874,7 +960,7 @@ function initializeAPI() {
   // 检查API是否已准备好
   if (window.pywebview && window.pywebview.api) {
     // 获取版本信息
-    window.pywebview.api.get_version().then(version_ => {
+    window.pywebview.api.get_Version().then(version_ => {
       if (window.vueApp) {
         window.vueApp.version = version_;
         document.getElementById('version').innerText = window.vueApp.version;
@@ -889,17 +975,17 @@ function initializeAPI() {
     });
     
     // 获取版本日志
-    window.pywebview.api.get_versionLog().then(versionLog_ => {
+    window.pywebview.api.get_VersionHistory().then(versionHistory_ => {
       if (window.vueApp) {
-        window.vueApp.versionLog = versionLog_;
-        document.getElementById('versionLog').innerText = window.vueApp.versionLog;
-        window.vueApp.loadingVersionLog = false;
+        window.vueApp.versionHistory = versionHistory_;
+        document.getElementById('VersionHistory').innerText = window.vueApp.versionHistory;
+        window.vueApp.loadingVersionHistory = false;
       }
     }).catch(error => {
       if (window.vueApp) {
-        window.vueApp.versionLog = '未知版本日志';
-        document.getElementById('versionLog').innerText = window.vueApp.versionLog;
-        window.vueApp.loadingVersionLog = false;
+        window.vueApp.versionLog = '未知版本历史';
+        document.getElementById('VersionHistory').innerText = window.vueApp.versionLog;
+        window.vueApp.loadingVersionHistory = false;
       }
     });
   } else {
