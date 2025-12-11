@@ -46,6 +46,12 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version: '1.21'
+      
+    - name: 安装 Go 库
+      shell: bash
+      run: |
+        go get github.com/gorilla/websocket@v1.5.3
+        go mod tidy
         
     - name: 设置环境变量
       shell: bash
@@ -89,7 +95,7 @@ jobs:
     steps:
     - name: 检出代码仓库
       uses: actions/checkout@v4
-      
+    
     - name: 设置 Python 环境
       uses: actions/setup-python@v5
       with:
@@ -103,19 +109,53 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         path: ./downloaded-binaries
+        name: go-binary-${{ matrix.os }}-${{ matrix.arch }}
+    
+    - name: 验证下载的文件
+      run: |
+        if [ ! -d "downloaded-binaries" ]; then
+          echo "Error: downloaded-binaries directory not found"
+          exit 1
+        fi
         
-    - name: 整理二进制文件
+        echo "Downloaded files:"
+        ls -la downloaded-binaries/
+        
+        if [ $(ls -A downloaded-binaries | wc -l) -eq 0 ]; then
+          echo "Error: No files downloaded"
+          exit 1
+        fi
+    
+    - name: 创建 binaries 目录并复制文件
       run: |
         mkdir -p binaries
         find downloaded-binaries -name "*.dll" -o -name "*.so" -o -name "*.dylib" | while read file; do
           cp "$file" binaries/
+          echo "Copied: $file"
         done
         
+        # 验证是否复制成功
+        if [ ! -d "binaries" ] || [ $(ls -A binaries | wc -l) -eq 0 ]; then
+          echo "Error: No files copied to binaries directory"
+          exit 1
+        fi
+        
+        echo "Files in binaries directory:"
+        ls -la binaries/
+    
+    - name: 复制二进制文件到GUI目录
+      run: |
+        cp -r binaries/* GUI/
+        echo "Files copied to GUI directory"
+        
+        # 验证复制结果
+        if [ ! -d "GUI" ] || [ $(ls -A GUI | wc -l) -eq 0 ]; then
+          echo "Error: Failed to copy files to GUI directory"
+          exit 1
+        fi
+    
     - name: 编译 GUI 应用
       run: |
-        # 复制二进制文件到GUI目录
-        cp -r binaries/* GUI/
-        
         cd GUI
         python build_Nuitka.py --platform ${{ matrix.platform }}
         

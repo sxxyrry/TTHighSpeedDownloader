@@ -1,4 +1,4 @@
-module FastDownloader
+module TTHighSpeedDownloaderDownloader
 
 go 1.25.4
 
