@@ -85,19 +85,14 @@ jobs:
         
         # Windows ARM64
         if [[ "${{ matrix.os }}" == "windows-latest" && "${{ matrix.arch }}" == "arm64" ]]; then
-          # 安装通用MinGW
+          # 使用x86_64的MinGW并配合Go的内置交叉编译
           choco install mingw
-          # 从官方源安装ARM64工具链
-          mkdir -p /tmp/arm64-toolchain
-          cd /tmp/arm64-toolchain
-          # 下载ARM64 MinGW工具链
-          curl -L -o toolchain.tar.xz https://github.com/mstorsjo/llvm-mingw/releases/latest/download/llvm-mingw-20240406-ucrt-x86_64.tar.xz
-          tar -xf toolchain.tar.xz
-          export PATH="/tmp/arm64-toolchain/llvm-mingw-20240406-ucrt-x86_64/bin:$PATH"
-          export CC=aarch64-w64-mingw32-gcc
+          export CC=x86_64-w64-mingw32-gcc
           export CGO_ENABLED=1
           export GOOS=windows
           export GOARCH=arm64
+          # 不设置CC变量，让Go使用自己的交叉编译机制
+          unset CC
           go build -v -buildmode=c-shared -o TTHighSpeedDownloader_${{ matrix.arch }}$EXT .
         elif [[ "${{ matrix.os }}" == "ubuntu-latest" && "${{ matrix.arch }}" == "arm64" ]]; then
           sudo apt-get update
