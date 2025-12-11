@@ -83,13 +83,17 @@ jobs:
         
         echo "Building for OS: ${{ matrix.goos }}, Arch: ${{ matrix.arch }}"
         
-        # 为不同平台安装相应的交叉编译工具链
+        # 为不同平台采用适当的编译方式
         if [[ "${{ matrix.os }}" == "windows-latest" && "${{ matrix.arch }}" == "arm64" ]]; then
-          # Windows ARM64 交叉编译
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-w64-mingw32
-          # 设置交叉编译环境变量
-          CC=aarch64-w64-mingw32-gcc CGO_ENABLED=1 GOOS=windows GOARCH=arm64 go build -v -buildmode=c-shared -o TTHighSpeedDownloader_${{ matrix.arch }}$EXT .
+          # Windows ARM64 - 使用MinGW-w64交叉编译工具链
+          # 先安装交叉编译工具
+          choco install mingw
+          # 设置正确的编译器路径
+          export CC=aarch64-w64-mingw32-gcc
+          export CGO_ENABLED=1
+          export GOOS=windows
+          export GOARCH=arm64
+          go build -v -buildmode=c-shared -o TTHighSpeedDownloader_${{ matrix.arch }}$EXT .
         elif [[ "${{ matrix.os }}" == "ubuntu-latest" && "${{ matrix.arch }}" == "arm64" ]]; then
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu
