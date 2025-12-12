@@ -66,16 +66,16 @@ def build():
         if os.path.exists(folder):
             nuitka_args.append(f'--include-data-dir={folder}{separator}{dest}')
 
-    print("运行参数:", ' '.join(nuitka_args))
+    print("构建参数：", ' '.join(nuitka_args))
     
     try:
         subprocess.run(nuitka_args, check=True)
         print("GUI构建成功完成！")
     except subprocess.CalledProcessError as e:
-        print(f"GUI构建失败: {e}")
+        print(f"GUI构建失败：{e}")
         sys.exit(1)
     except FileNotFoundError:
-        print("错误: 未找到 Nuitka，请先安装")
+        print("错误：未找到 Nuitka，请先安装")
         sys.exit(1)
 
 if __name__ == '__main__':

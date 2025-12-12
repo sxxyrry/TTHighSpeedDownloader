@@ -172,7 +172,8 @@ jobs:
           #   os: macos-latest
         exclude:
           - platform: Windows
-            arch: arm64
+            arch: amd64
+            os: windows-latest
         # exclude:
         #   - platform: Windows
         #     arch: arm64
@@ -202,7 +203,7 @@ jobs:
 
     - name: 设置编码环境变量
       run: |
-        set PYTHONIOENCODING=utf-8
+        echo "PYTHONIOENCODING=utf-8" >> $GITHUB_ENV
 
     - name: 设置 Python 环境
       uses: actions/setup-python@v5
@@ -286,6 +287,7 @@ jobs:
     - name: 编译 GUI 应用
       run: |
         cd GUI
+        # 让
         python build_Nuitka.py --platform ${{ matrix.platform }}
         
     - name: 上传GUI产物
