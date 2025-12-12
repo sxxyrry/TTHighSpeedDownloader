@@ -42,12 +42,6 @@ jobs:
         echo "用户未确认打包/编译应用。跳过打包/编译。"
         exit 0
         
-    - name: 跳过 Windows ARM64 的编译
-      if: matrix.arch == 'arm64' && matrix.os == 'windows-latest'
-      run: |
-        echo "跳过 Windows ARM64 的编译。"
-        exit 0
-        
     - name: 检出代码仓库
       uses: actions/checkout@v4
       
@@ -69,6 +63,22 @@ jobs:
         echo "GOOS=${{ matrix.goos }}" >> $GITHUB_ENV
         echo "GOARCH=${{ matrix.arch }}" >> $GITHUB_ENV
       
+    - name: 安装Windows ARM64交叉编译工具链
+      if: matrix.os == 'windows-latest' && matrix.arch == 'arm64'
+      run: |
+        # 安装MSYS2
+        choco install msys2
+        # 刷新环境变量使其生效
+        refreshenv
+        # 等待环境变量更新完成
+        sleep 5
+        # 通过MSYS2安装ARM64交叉编译器
+        C:\\tools\\msys64\\usr\\bin\\bash.exe -lc "pacman -S --noconfirm mingw-w64-x86_64-gcc mingw-w64-aarch64-gcc"
+        # 将编译器路径添加到环境变量
+        echo "C:\tools\msys64\mingw64\bin" >> $GITHUB_PATH
+        # 再次刷新环境变量
+        echo "PATH=$PATH:/c/tools/msys64/mingw64/bin" >> $GITHUB_ENV
+
     - name: 编译 Go 应用程序
       shell: bash
       run: |
@@ -91,14 +101,6 @@ jobs:
         
         # Windows ARM64
         if [[ "${{ matrix.os }}" == "windows-latest" && "${{ matrix.arch }}" == "arm64" ]]; then
-          # 安装MSYS2
-          choco install msys2
-          # 通过MSYS2安装ARM64交叉编译器
-          C:\tools\msys64\usr\bin\bash.exe -lc "pacman -S --noconfirm mingw-w64-x86_64-gcc mingw-w64-aarch64-gcc"
-          # 将编译器路径添加到环境变量
-          echo "C:\tools\msys64\mingw64\bin" >> $GITHUB_PATH
-          # # 安装支持ARM64的MinGW-w64工具链
-          # choco install mingw --version=12.2.0
           # 设置正确的交叉编译环境变量
           CC=aarch64-w64-mingw32-gcc CGO_ENABLED=1 GOOS=windows GOARCH=arm64 go build -v -buildmode=c-shared -o TTHighSpeedDownloader_${{ matrix.arch }}$EXT .
         elif [[ "${{ matrix.os }}" == "ubuntu-latest" && "${{ matrix.arch }}" == "arm64" ]]; then
