@@ -174,7 +174,13 @@ jobs:
           - platform: Windows
             arch: arm64
           - platform: Linux
+            arch: arm64
+          - platform: Linux
+            arch: amd64
           - platform: MacOS
+            arch: arm64
+          - platform: MacOS
+            arch: amd64
 
     steps:
     - name: 检出代码仓库
