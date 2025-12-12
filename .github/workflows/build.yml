@@ -91,8 +91,12 @@ jobs:
         
         # Windows ARM64
         if [[ "${{ matrix.os }}" == "windows-latest" && "${{ matrix.arch }}" == "arm64" ]]; then
-          # 安装支持ARM64的MinGW-w64工具链
-          choco install mingw --version=12.2.0
+
+          # 下载预构建的交叉编译工具链
+          curl -L -o gcc-arm64.zip "https://github.com/skeeto/w64devkit/releases/download/v1.18.0/w64devkit-arm64-1.18.0.zip"
+          unzip gcc-arm64.zip
+          # 添加到PATH
+          echo "C:/gcc-arm64/bin" >> $G
           # 设置正确的交叉编译环境变量
           CC=aarch64-w64-mingw32-gcc CGO_ENABLED=1 GOOS=windows GOARCH=arm64 go build -v -buildmode=c-shared -o TTHighSpeedDownloader_${{ matrix.arch }}$EXT .
         elif [[ "${{ matrix.os }}" == "ubuntu-latest" && "${{ matrix.arch }}" == "arm64" ]]; then
