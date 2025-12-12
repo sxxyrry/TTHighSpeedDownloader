@@ -34,6 +34,9 @@ jobs:
           - os: macos-latest
             ext: .dylib
             goos: darwin
+        exclude:
+          - os: windows-latest
+            arch: arm64
     
     steps:
     - name: 检查用户确认打包/编译应用
