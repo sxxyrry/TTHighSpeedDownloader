@@ -252,7 +252,9 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: gui-${{ matrix.platform }}
-        path: GUI/dist/
+        path: |
+          GUI/dist/**
+          GUI/dist/*
         if-no-files-found: error
 
   package-final:
