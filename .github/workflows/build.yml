@@ -162,6 +162,7 @@ jobs:
     strategy:
       matrix:
         platform: [Windows, Linux, MacOS]
+        arch: [amd64, arm64]
         include:
           - platform: Windows
             os: windows-latest
@@ -174,6 +175,13 @@ jobs:
     - name: 检出代码仓库
       uses: actions/checkout@v4
     
+    - name: 修复目录权限
+      if: matrix.platform == 'MacOS'
+      run: |
+        cd GUI
+        mkdir -p dist
+        chmod 755 dist
+
     - name: 设置 Python 环境
       uses: actions/setup-python@v5
       with:
