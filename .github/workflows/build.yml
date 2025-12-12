@@ -42,6 +42,13 @@ jobs:
         echo "用户未确认打包/编译应用。跳过打包/编译。"
         exit 0
         
+    - name: 跳过WindowsArm64
+      if: matrix.os == 'windows-latest' && matrix.arch == 'arm64'
+      shell: bash
+      run: |
+        echo "跳过Windows ARM64"
+        exit 0
+
     - name: 检出代码仓库
       uses: actions/checkout@v4
       
