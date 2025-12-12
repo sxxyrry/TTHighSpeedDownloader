@@ -39,7 +39,7 @@ def build():
         'python', '-m', 'nuitka',
         '--standalone',
         '--onefile',  # 生成单个可执行文件
-        '--output-dir=dist',
+        # '--output-dir=dist',
         './TTHighSpeedDownloader_GUI.py'
     ]
     
