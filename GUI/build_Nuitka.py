@@ -40,7 +40,7 @@ def build():
         '--onefile',  # 生成单个可执行文件
         '--output-dir=dist',
         f'--output-filename=TTHighSpeedDownloader_GUI_{target_platform}',
-        '--text-coding=utf-8',
+        # '--text-coding=utf-8',
         './TTHighSpeedDownloader_GUI.py'
     ]
     
