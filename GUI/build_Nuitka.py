@@ -66,7 +66,7 @@ def build():
         if os.path.exists(folder):
             nuitka_args.append(f'--include-data-dir={folder}{separator}{dest}')
 
-    print("构建参数：", ' '.join(nuitka_args))
+    print(f"构建参数：{' '.join(nuitka_args)}")
     
     try:
         subprocess.run(nuitka_args, check=True)
