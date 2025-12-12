@@ -25,14 +25,14 @@ def build():
             target_platform = 'Linux'
 
     # 定义分隔符
-    separator = ':'
+    separator = '='
 
     if target_platform == 'Linux':
         separator = '='
     elif target_platform == 'MacOS':
-        separator = ';'
+        separator = '='
     else:
-        separator = ':'
+        separator = '='
 
     # 构建Nuitka命令参数
     nuitka_args = [
