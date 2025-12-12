@@ -189,6 +189,7 @@ jobs:
         path: ./downloaded-binaries
     
     - name: 验证下载的文件
+      shell: bash
       run: |
         if [ ! -d "downloaded-binaries" ]; then
           echo "Error: downloaded-binaries directory not found"
@@ -204,6 +205,7 @@ jobs:
         fi
     
     - name: 创建 binaries 目录并复制文件
+      shell: bash
       run: |
         mkdir -p binaries
         
@@ -239,6 +241,7 @@ jobs:
         ls -la binaries/
     
     - name: 复制二进制文件到GUI目录
+      shell: bash
       run: |
         mkdir -p GUI/binaries
         cp -r binaries/* GUI/binaries/
