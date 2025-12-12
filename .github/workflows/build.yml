@@ -170,6 +170,9 @@ jobs:
           #   os: ubuntu-latest
           # - platform: MacOS
           #   os: macos-latest
+        exclude:
+          - platform: Windows
+            arch: arm64
         # exclude:
         #   - platform: Windows
         #     arch: arm64
