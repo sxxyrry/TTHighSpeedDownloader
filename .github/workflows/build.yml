@@ -166,13 +166,15 @@ jobs:
         include:
           - platform: Windows
             os: windows-latest
-          # - platform: Linux
-          #   os: ubuntu-latest
-          # - platform: MacOS
-          #   os: macos-latest
+          - platform: Linux
+            os: ubuntu-latest
+          - platform: MacOS
+            os: macos-latest
         exclude:
           - platform: Windows
             arch: arm64
+          - platform: Linux
+          - platform: MacOS
 
     steps:
     - name: 检出代码仓库
