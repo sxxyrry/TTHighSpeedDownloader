@@ -62,19 +62,19 @@ jobs:
       run: |
         echo "GOOS=${{ matrix.goos }}" >> $GITHUB_ENV
         echo "GOARCH=${{ matrix.arch }}" >> $GITHUB_ENV
-      
+          
     - name: 安装Windows ARM64交叉编译工具链
       if: matrix.os == 'windows-latest' && matrix.arch == 'arm64'
       shell: bash
       run: |
         # 安装MSYS2
         choco install msys2
-        # 刷新环境变量使其生效
-        refreshenv
-        # 等待环境变量更新完成
+        # 等待安装完成
         sleep 5
+        # 直接source环境而不是使用refreshenv
+        source /c/tools/msys64/etc/profile.d/msys2.sh 2>/dev/null || true
         # 通过MSYS2安装ARM64交叉编译器
-        C:\\tools\\msys64\\usr\\bin\\bash.exe -lc "pacman -S --noconfirm mingw-w64-x86_64-gcc mingw-w64-aarch64-gcc"
+        /c/tools/msys64/usr/bin/bash.exe -lc "pacman -S --noconfirm mingw-w64-x86_64-gcc mingw-w64-aarch64-gcc"
         # 将编译器路径添加到环境变量
         echo "C:\tools\msys64\mingw64\bin" >> $GITHUB_PATH
         # 添加到PATH环境变量
