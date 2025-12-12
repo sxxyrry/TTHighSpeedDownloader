@@ -170,6 +170,9 @@ jobs:
             os: ubuntu-latest
           - platform: MacOS
             os: macos-latest
+        exclude:
+          - os: windows-latest
+            arch: arm64
 
     steps:
     - name: 检出代码仓库
