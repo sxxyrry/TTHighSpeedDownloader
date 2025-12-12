@@ -1,4 +1,5 @@
 import argparse
+from pty import spawn
 import subprocess
 import os
 import sys
@@ -24,7 +25,14 @@ def build():
             target_platform = 'Linux'
 
     # 定义分隔符
-    separator = ';' if target_platform == 'Windows' else ':'
+    separator = ':'
+
+    if target_platform == 'Linux':
+        separator = '='
+    elif target_platform == 'MacOS':
+        separator = ';'
+    else:
+        separator = ':'
 
     # 构建Nuitka命令参数
     nuitka_args = [
