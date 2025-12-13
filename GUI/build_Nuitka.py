@@ -4,6 +4,10 @@ import os
 import sys
 
 def build():
+    # 在构建函数开始处添加
+    os.environ['NUITKA_DO_NOT_TRACK'] = '1'
+    os.environ['NUITKA_DOWNLOADS_CONFIRMATION'] = '1'
+    
     parser = argparse.ArgumentParser()
     parser.add_argument('--platform', choices=['Windows', 'Linux', 'MacOS'], 
                        help='指定目标平台 (Windows/Linux/MacOS)')
