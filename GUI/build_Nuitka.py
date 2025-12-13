@@ -5,8 +5,9 @@ import sys
 
 def build():
     # 在构建函数开始处添加
-    os.environ['NUITKA_DO_NOT_TRACK'] = '1'
     os.environ['NUITKA_DOWNLOADS_CONFIRMATION'] = '1'
+    os.environ['NUITKA_ASSUME_YES_FOR_DOWNLOADS'] = '1'
+    os.environ['NUITKA_DISABLE_DLL_DEPENDENCY_CACHE'] = '1'
     
     parser = argparse.ArgumentParser()
     parser.add_argument('--platform', choices=['Windows', 'Linux', 'MacOS'], 
@@ -38,6 +39,11 @@ def build():
         f'--output-filename=TTHighSpeedDownloader_GUI_{target_platform}',
         './TTHighSpeedDownloader_GUI.py'
     ]
+
+    nuitka_args.extend([
+        '--assume-yes-for-downloads',
+        '--disable-dll-dependency-cache'
+    ])
 
     # 设置控制台选项
     if target_platform == 'Windows':
