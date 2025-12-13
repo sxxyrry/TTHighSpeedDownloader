@@ -25,7 +25,6 @@ def build():
 
     # 定义分隔符
     separator = '='
-
     # 构建Nuitka命令参数
     nuitka_args = [
         'python', '-m', 'nuitka',
@@ -33,14 +32,14 @@ def build():
         '--onefile',  # 生成单个可执行文件
         '--output-dir=dist',
         f'--output-filename=TTHighSpeedDownloader_GUI_{target_platform}',
-        # '--text-coding=utf-8',
         './TTHighSpeedDownloader_GUI.py'
     ]
-    
+
     # 设置控制台选项
     if target_platform == 'Windows':
-        nuitka_args.append('--disable-console')  # Windows下禁用控制台
-    
+        # 使用新的控制台模式参数替代 --disable-console
+        nuitka_args.append('--windows-console-mode=disable')
+
     # 设置图标
     if target_platform == 'Windows' and os.path.exists(icon_path):
         nuitka_args.append(f'--windows-icon-from-ico={icon_path}')
@@ -49,19 +48,12 @@ def build():
 
     # 处理文件和目录
     files = ['./TTHighSpeedDownloader.dll', './TTHighSpeedDownloader.so', './TTHighSpeedDownloader.dylib', './VersionHistory.txt']
-    # 1. 修正文件包含参数格式
     for file in files:
         if os.path.exists(file):
-            # 使用文件名作为目标路径，而非 "."
             filename = os.path.basename(file)
+            # 修正：使用具体的文件名而不是 "."
             nuitka_args.append(f'--include-data-file={file}={filename}')
 
-    # 2. 更新Windows控制台选项
-    if target_platform == 'Windows':
-        # 替换弃用的 --disable-console
-        nuitka_args.append('--windows-console-mode=disable')
-
-    # 3. 修正文件夹包含参数（如果需要的话）
     folders = [('./files/', 'files')]
     for folder, dest in folders:
         if os.path.exists(folder):
