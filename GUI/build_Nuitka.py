@@ -26,13 +26,6 @@ def build():
     # 定义分隔符
     separator = '='
 
-    if target_platform == 'Linux':
-        separator = '='
-    elif target_platform == 'MacOS':
-        separator = '='
-    else:
-        separator = '='
-
     # 构建Nuitka命令参数
     nuitka_args = [
         'python', '-m', 'nuitka',
@@ -56,16 +49,24 @@ def build():
 
     # 处理文件和目录
     files = ['./TTHighSpeedDownloader.dll', './TTHighSpeedDownloader.so', './TTHighSpeedDownloader.dylib', './VersionHistory.txt']
-        
+    # 1. 修正文件包含参数格式
     for file in files:
         if os.path.exists(file):
-            nuitka_args.append(f'--include-data-file={file}{separator}.')
+            # 使用文件名作为目标路径，而非 "."
+            filename = os.path.basename(file)
+            nuitka_args.append(f'--include-data-file={file}={filename}')
 
+    # 2. 更新Windows控制台选项
+    if target_platform == 'Windows':
+        # 替换弃用的 --disable-console
+        nuitka_args.append('--windows-console-mode=disable')
+
+    # 3. 修正文件夹包含参数（如果需要的话）
     folders = [('./files/', 'files')]
     for folder, dest in folders:
         if os.path.exists(folder):
-            nuitka_args.append(f'--include-data-dir={folder}{separator}{dest}')
-
+            # 确保目标路径不以 "/" 结尾
+            nuitka_args.append(f'--include-data-dir={folder}={dest}')
     try:
         print("运行参数:", ' '.join(nuitka_args))
     except UnicodeEncodeError:
