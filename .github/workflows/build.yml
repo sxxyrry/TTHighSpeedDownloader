@@ -347,10 +347,10 @@ jobs:
         print(version)
                 
         # 生成构建号 (YYYYMMDD.HHMMSS)
-        # build_number = datetime.now().strftime("%Y%m%d.%H%M%S")
+        build_number = datetime.now().strftime("%Y%m%d.%H%M%S")
         
-        print(f"::set-output name=version::{version}")
-        print(f"::set-output name=build_number::{build_number}")
+        print(f"version={version} >> $GITHUB_OUTPUT")
+        print(f"build_number={build_number} >> $GITHUB_OUTPUT")
         print(f"Version: {version}, Build: {build_number}")
         
     - name: 打包各平台完整发行版
