@@ -341,7 +341,7 @@ jobs:
             text = f.read()
           
         for line in text.split('\n'):
-            print('line')
+            print(f'line: {line}')
             if line.endswith(' V:'):
                 version = line.split(' V:')[1]
         
