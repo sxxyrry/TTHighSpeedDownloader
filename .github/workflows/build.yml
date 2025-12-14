@@ -325,7 +325,7 @@ jobs:
       id: parse_version
       shell: python
       run: |
-        import re
+        import re, os
         from datetime import datetime
         from pathlib import Path
         
@@ -350,8 +350,8 @@ jobs:
         print('"version={version}" >> $GITHUB_OUTPUT')
         print('"build_number={build_number}" >> $GITHUB_OUTPUT')
 
-        sys.command(f'"version={version}" >> $GITHUB_OUTPUT')
-        sys.command(f'"build_number={build_number}" >> $GITHUB_OUTPUT')
+        os.command(f'"version={version}" >> $GITHUB_OUTPUT')
+        os.command(f'"build_number={build_number}" >> $GITHUB_OUTPUT')
 
         print(f"Version: {version}, Build: {build_number}")
         
