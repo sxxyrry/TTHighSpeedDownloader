@@ -341,17 +341,18 @@ jobs:
             text = f.read()
           
         for line in text.split('\n'):
-            print(f'line: {line}')
             if line.endswith(' V:'):
-                version = line.split(' V:')[1]
+                version = line.split(' V:')[0]
         
-        print(version)
-                
         # 生成构建号 (YYYYMMDD.HHMMSS)
         build_number = datetime.now().strftime("%Y%m%d.%H%M%S")
         
-        print(f'"version={version}" >> $GITHUB_OUTPUT')
-        print(f'"build_number={build_number}" >> $GITHUB_OUTPUT')
+        print('"version={version}" >> $GITHUB_OUTPUT')
+        print('"build_number={build_number}" >> $GITHUB_OUTPUT')
+
+        sys.command(f'"version={version}" >> $GITHUB_OUTPUT')
+        sys.command(f'"build_number={build_number}" >> $GITHUB_OUTPUT')
+
         print(f"Version: {version}, Build: {build_number}")
         
     - name: 打包各平台完整发行版
