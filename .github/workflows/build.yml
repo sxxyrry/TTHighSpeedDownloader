@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       build_version:
-        description: '打包/编译版本 （例如 1.0.0）'
+        description: '打包/编译版本'
         required: false
         default: ''
       confirm_build:
@@ -330,12 +330,19 @@ jobs:
         from pathlib import Path
         
         # 默认版本
-        version = "1.0.0"
+        version = ""
         
         # 如果提供了输入版本，则使用它
         input_version = "${{ github.event.inputs.build_version }}"
         if input_version and input_version.strip():
             version = input_version.strip()
+        
+        with open("./VersionHistory.txt", "r", encoding="utf-8") as f:
+            text = f.read()
+          
+        for line in text.split('\n'):
+            if line.endswith(' V:'):
+                version = line.split(' V:')[1]
                 
         # 生成构建号 (YYYYMMDD.HHMMSS)
         build_number = datetime.now().strftime("%Y%m%d.%H%M%S")
