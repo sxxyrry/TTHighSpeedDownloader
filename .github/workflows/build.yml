@@ -343,9 +343,11 @@ jobs:
         for line in text.split('\n'):
             if line.endswith(' V:'):
                 version = line.split(' V:')[1]
+        
+        print(version)
                 
         # 生成构建号 (YYYYMMDD.HHMMSS)
-        build_number = datetime.now().strftime("%Y%m%d.%H%M%S")
+        # build_number = datetime.now().strftime("%Y%m%d.%H%M%S")
         
         print(f"::set-output name=version::{version}")
         print(f"::set-output name=build_number::{build_number}")
