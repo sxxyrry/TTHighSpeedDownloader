@@ -3,6 +3,7 @@ import subprocess
 import os
 import sys
 
+
 def build():
     # 在构建函数开始处添加
     os.environ['NUITKA_DOWNLOADS_CONFIRMATION'] = '1'
@@ -16,7 +17,7 @@ def build():
     
     # 获取当前脚本目录
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    icon_path = os.path.join(current_dir, './files/assets/TTHSD.ico')
+    icon_path = os.path.join(current_dir, './files/assets/Image//TTHSD_GUI.ico')
     
     # 确定目标平台
     target_platform = args.platform
@@ -30,6 +31,7 @@ def build():
 
     # 定义分隔符
     separator = '='
+
     # 构建Nuitka命令参数
     nuitka_args = [
         'python', '-m', 'nuitka',
@@ -48,7 +50,8 @@ def build():
     # 设置控制台选项
     if target_platform == 'Windows':
         # 使用新的控制台模式参数替代 --disable-console
-        nuitka_args.append('--windows-console-mode=disable')
+        # nuitka_args.append('--windows-console-mode=disable')
+        pass
 
     # 设置图标
     if target_platform == 'Windows' and os.path.exists(icon_path):
@@ -56,8 +59,10 @@ def build():
     elif target_platform == 'MacOS' and os.path.exists(icon_path.replace('.ico', '.icns')):
         nuitka_args.append(f'--macos-app-icon={icon_path.replace(".ico", ".icns")}')
 
+    # nuitka_args.append(f'')
+
     # 处理文件和目录
-    files = ['./TTHighSpeedDownloader.dll', './TTHighSpeedDownloader.so', './TTHighSpeedDownloader.dylib', './VersionHistory.txt']
+    files = ['./TTHighSpeedDownloader.dll', './TTHighSpeedDownloader.so', './TTHighSpeedDownloader.dylib', './VersionHistory.txt', './README.md']
     for file in files:
         if os.path.exists(file):
             filename = os.path.basename(file)

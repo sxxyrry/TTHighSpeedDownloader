@@ -1,3 +1,4 @@
+import base64
 import ctypes
 import os
 import pathlib
@@ -5,24 +6,30 @@ import sys
 import time
 from typing import Literal, TypedDict
 import json
+import requests
 import webview
 import uuid
 import threading
 import logging
 import configparser
-# from watchdog.observers import Observer
-# from watchdog.events import FileSystemEventHandler
+from Notice import Notice
+import wx # pyright: ignore[reportMissingTypeStubs]
+import webbrowser
+import watch_sim as watch
+# import watch
 
 
-# class FileChangeHandler(FileSystemEventHandler):
-#     def __init__(self, window):
-#         self.window = window
-        
-#     def on_modified(self, event):
-#         if not event.is_directory and event.src_path.startswith('./files'):
-#             # print(f"检测到文件变化: {event.src_path}")
-#             # 刷新页面
-#             self.window.evaluate_js("location.reload();")
+class popupDict(TypedDict):
+    title: str
+    message: str
+    type: Literal['info', 'warning', 'error']
+
+class selectPathDict(TypedDict):
+    title: str
+    defaultPath: str
+
+app = wx.App(False)
+notice = Notice(app=app)
 
 def get_config_path():
     """获取配置文件路径"""
@@ -43,7 +50,8 @@ def load_config():
     if not os.path.exists(config_path):
         config['DOWNLOAD'] = {
             'thread_count': '64',
-            'chunk_size_mb': '10'
+            'chunk_size_mb': '10',
+            'UA': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0'
         }
         with open(config_path, 'w') as configfile:
             config.write(configfile)
@@ -53,7 +61,7 @@ def load_config():
         
     return config
 
-def save_config(thread_count, chunk_size_mb):
+def save_config(thread_count: int, chunk_size_mb: int, UA: str):
     """保存配置"""
     config = configparser.ConfigParser()
     config_path = get_config_path()
@@ -68,6 +76,7 @@ def save_config(thread_count, chunk_size_mb):
         
     config['DOWNLOAD']['thread_count'] = str(thread_count)
     config['DOWNLOAD']['chunk_size_mb'] = str(chunk_size_mb)
+    config['DOWNLOAD']['UA'] = UA
     
     with open(config_path, 'w') as configfile:
         config.write(configfile)
@@ -77,12 +86,14 @@ def save_config(thread_count, chunk_size_mb):
 PROGRESS_CALLBACK = ctypes.CFUNCTYPE(None, ctypes.c_void_p, ctypes.c_void_p)
 
 # 加载 DLL/SO
-if os.name == 'nt':  # Windows
+if sys.platform.startswith('win'):  # Windows
     lib = ctypes.CDLL('./TTHighSpeedDownloader.dll')
 elif sys.platform == 'darwin':  # MacOS
     lib = ctypes.CDLL('./TTHighSpeedDownloader.dylib')
-else:  # Linux/Mac
+elif sys.platform.startswith('linux'):  # Linux
     lib = ctypes.CDLL('./TTHighSpeedDownloader.so')
+else:
+    raise OSError('Unsupported operating system')
 
 class Task(TypedDict):
     URL: str
@@ -97,23 +108,10 @@ lib.startDownload.argtypes = [
     ctypes.c_int,           # chunkSizeMB
     PROGRESS_CALLBACK,      # callback
     ctypes.c_bool,          # useCallbackURL
+    ctypes.c_char_p,        # userAgent
     ctypes.c_char_p,        # remoteCallbackUrl
     ctypes.POINTER(ctypes.c_bool),  # useSocket
 ]
-lib.getDownloader.argtypes = [
-    ctypes.c_char_p,                 # tasksData - JSON格式的任务数据
-    ctypes.c_int,                    # taskCount - 任务数量
-    ctypes.c_int,                    # threadCount
-    ctypes.c_int,                    # chunkSizeMB
-]
-lib.getDownloader.restype = ctypes.c_int
-
-lib.pauseDownload.argtypes = [ctypes.c_int]  # id
-lib.pauseDownload.restype = ctypes.c_int
-
-lib.resumeDownload.argtypes = [ctypes.c_int]  # id
-lib.resumeDownload.restype = ctypes.c_int
-lib.startDownload.restype = ctypes.c_int
 
 # 定义进度回调函数
 last_downloaded = 0
@@ -125,7 +123,7 @@ class Event(TypedDict):
     Name: str
 
 def callback_func(event_ptr, msg_ptr):
-    global last_downloaded, callback_window
+    global callback_window  # 移除对 last_downloaded 的依赖
     
     # 将 ctypes 指针转换为字节数据，然后解码为 JSON
     try:
@@ -139,9 +137,9 @@ def callback_func(event_ptr, msg_ptr):
         # 从指针获取消息数据
         if msg_ptr:
             msg_data = ctypes.cast(msg_ptr, ctypes.c_char_p).value
-            msg_dict: dict[Literal["Total", "Added", "Speed"], int | float] | \
+            msg_dict: dict[Literal["Total", "Downloaded", "Speed"], int | float] | \
                 dict[Literal["Text"], str] | \
-                dict[Literal["Index", "Total", "URL"], str | int] | \
+                dict[Literal["Index", "Total", "URL", "ID"], str | int] | \
                 dict[None, None] = json.loads(msg_data.decode('utf-8')) if msg_data else {}
         else:
             msg_dict = {}
@@ -159,19 +157,18 @@ def callback_func(event_ptr, msg_ptr):
         
         if event_type == 'update':
             total = msg_dict.get('Total', 0)
-            added = msg_dict.get('Added', 0)
+            downloaded = msg_dict.get('Downloaded', 0)  # 使用绝对下载量而非增量
             speed = msg_dict.get('Speed', 0.0)
             
             # 更新进度显示
-            print(f"速度：{speed:.2f} B/s {last_downloaded + added}/{total} 字节\r\b", end='', flush=True)
-            last_downloaded += added
+            print(f"速度：{speed:.2f} B/s {downloaded}/{total} 字节", end='\r', flush=True)
             
             # 添加进度信息
             progress_data["progress"] = {
-                "downloaded": last_downloaded,
+                "downloaded": downloaded,
                 "total": total,
                 "speed": speed,
-                "added": added
+                "added": downloaded  # 保留added字段，但实际使用downloaded
             }
             
         elif event_type == 'msg':
@@ -179,25 +176,23 @@ def callback_func(event_ptr, msg_ptr):
             print(f"\n{event_name}：{text}")
             
         elif event_type == 'startOne':
-            last_downloaded = 0
             url = msg_dict.get('URL', '')
+            task_id = msg_dict.get('ID', '')
             index = msg_dict.get('Index', 0)
-            total = msg_dict.get('Total', 0)
-            print(f"\n开始下载：{url}，这是第 {index} 个下载，总共 {total} 个。")
+            total_tasks = msg_dict.get('Total', 0)
+            print(f"\n开始下载：{url}，这是第 {index} 个下载，总共 {total_tasks} 个。")
             
         elif event_type == 'start':
-            last_downloaded = 0
             print(f"\n开始下载")
             
         elif event_type == 'endOne':
-            last_downloaded = 0
             url = msg_dict.get('URL', '')
+            task_id = msg_dict.get('ID', '')
             index = msg_dict.get('Index', 0)
-            total = msg_dict.get('Total', 0)
-            print(f"\n下载完成：{url}，这是第 {index} 个下载，总共 {total} 个。")
+            total_tasks = msg_dict.get('Total', 0)
+            print(f"\n下载完成：{url}，这是第 {index} 个下载，总共 {total_tasks} 个。")
             
         elif event_type == 'end':
-            last_downloaded = 0
             print(f"\n下载完成！")
             
         # 通过evaluate_js向页面发送进度更新
@@ -249,6 +244,7 @@ def RunDownload(urls: list[str], savepaths: list[str]):
         config = load_config()
         thread_count = config.getint('DOWNLOAD', 'thread_count', fallback=64)
         chunk_size_mb = config.getint('DOWNLOAD', 'chunk_size_mb', fallback=10)
+        UA: str = config.get('DOWNLOAD', 'UA', fallback='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0')
         
         # 构造任务数据
         tasks = []
@@ -277,6 +273,7 @@ def RunDownload(urls: list[str], savepaths: list[str]):
             ctypes.c_int(chunk_size_mb),   # chunkSizeMB
             progress_cb,        # callback
             False,              # useCallbackURL
+            UA.encode('utf-8'),
             None,               # remoteCallbackUrl
             ctypes.byref(use_socket_val)  # useSocket
         )
@@ -309,7 +306,6 @@ def RunDownload(urls: list[str], savepaths: list[str]):
                 print(f"发送错误信息到前端时出错: {send_error}")
 
 def main():
-
     with open(os.path.join(pathlib.Path(__file__).parent.resolve(), './VersionHistory.txt'), 'r', encoding='utf-8') as file:
         versionHistory: str = file.read()
     
@@ -318,6 +314,11 @@ def main():
         for item in versionHistory.split('\n'):
             if item.endswith(' V:'):
                 version: str = item.split(' V:')[0]
+
+    with open(os.path.join(pathlib.Path(__file__).parent.resolve(), './README.md'), 'r', encoding='utf-8') as file:
+        README: str = file.read()
+
+    KernelVersion = '0.4.0'
 
     class Api:
         def download(self, urls, savepaths):
@@ -342,6 +343,104 @@ def main():
             """恢复窗口（最小化时）"""
             window.restore()
 
+        def openURL_NewWin(self, url: str):
+            """在新窗口打开 URL"""
+            webbrowser.open_new(url)
+
+        def openURL_NewTab(self, url: str):
+            """在新标签页打开 URL"""
+            webbrowser.open_new_tab(url)
+
+        def openURL(self, url: str):
+            """在新标签页打开 URL"""
+            webbrowser.open(url)
+
+        def openURL_webview(self, url: str, title: str):
+            window_: webview.Window = webview.create_window(title, url) # pyright: ignore[reportUnknownMemberType, reportAssignmentType]
+            window_.show()
+        
+        def openMD(self, file: str | None = None, url: str | None = None):
+            if (file is None) and (url is None):
+                raise ValueError('openMDFile: Both file and url are None in the same call.')
+            if not (file is None) and not (url is None):
+                raise ValueError('openMDDile: Both file and URL have values in the same call.')
+            
+            if (file is None) and not (url is None):
+                print(url)
+                response = requests.get(url)
+                response.raise_for_status()
+                print(response.text)
+                md_content: str = response.text
+            elif (url is None) and not (file is None):
+                with open(file, 'r', encoding='utf-8') as f:
+                    md_content: str = f.read()
+            else:
+                raise TypeError('openMDFile: file and url are None in the same call.')
+
+            self.openURL_webview(url=f'./showMD.html?content={base64.urlsafe_b64encode(md_content.encode()).decode()}', title='文件查看')
+
+        def openFile(self, file: str | None = None, url: str | None = None):
+            if (file is None) and (url is None):
+                raise ValueError('openFile: Both file and url are None in the same call.')
+            if not (file is None) and not (url is None):
+                raise ValueError('openFile: Both file and URL have values in the same call.')
+            
+            if (file is None) and not (url is None):
+                response = requests.get(url)
+                response.raise_for_status()
+                content: str = response.text
+            elif (url is None) and not (file is None):
+                with open(file, 'r', encoding='utf-8') as f:
+                    content: str = f.read()
+            else:
+                raise TypeError('openFile: file and url are None in the same call.')
+
+            self.openURL_webview(url=f'./showFile.html?content={base64.urlsafe_b64encode(content.encode()).decode()}', title='文件查看')
+
+        def showPopup(self, popup: popupDict) -> dict[str, str]:
+            if popup['type'] == 'info':
+                notice.EmitNotice_New(popup['title'], popup['message'])
+            elif popup['type'] == 'warning':
+                notice.EmitWarningNotice_New(popup['title'], popup['message'])
+            elif popup['type'] == 'error':
+                notice.EmitErrorNotice_New(popup['title'], popup['message'])
+            
+            return {
+                'message': '成功发送弹窗'
+            }
+
+        def selectPath(self, data: selectPathDict | None = None) -> dict[str, str]:  # pyright: ignore[reportUnusedFunction]
+            """打开文件夹选择对话框并返回选择的路径"""
+            try:
+                # 获取请求数据
+                data: selectPathDict = {'title': '选择文件夹', 'defaultPath': ''} if data is None else data
+                title: str = data['title']
+                default_path: str = data['defaultPath']
+                
+                # 创建并显示文件夹选择对话框
+                dialog: wx.DirDialog = wx.DirDialog(None, message=title, defaultPath=default_path, style=wx.DD_DIR_MUST_EXIST | wx.DD_NEW_DIR_BUTTON)
+                if dialog.ShowModal() == wx.ID_OK:
+                    selected_path = dialog.GetPath()
+                else:
+                    selected_path = ''
+                dialog.Destroy()
+                
+                if selected_path:
+                    return {
+                        'selectedPath': selected_path
+                    }
+                else:
+                    # 用户取消了选择
+                    return {
+                        'msg': '用户取消了选择'
+                    }
+                    
+            except Exception as e:
+                # 服务器错误
+                return {
+                    'msg': f'服务器发生错误: {str(e)}'
+                }
+
         def exit(self, status: int = 0):
             running = False
             window.destroy()
@@ -353,30 +452,38 @@ def main():
         def get_VersionHistory(self):
             return versionHistory
 
+        def get_README(self):
+            return README
+        
+        def get_KernelVersion(self):
+            return KernelVersion
+
         def get_Config(self):
             """获取配置"""
             config = load_config()
             return {
                 'thread_count': config.getint('DOWNLOAD', 'thread_count', fallback=64),
-                'chunk_size_mb': config.getint('DOWNLOAD', 'chunk_size_mb', fallback=10)
+                'chunk_size_mb': config.getint('DOWNLOAD', 'chunk_size_mb', fallback=10),
+                'UA': config.get('DOWNLOAD', 'UA', fallback='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0'),
             }
 
-        def save_Config(self, thread_count, chunk_size_mb):
+        def save_Config(self, thread_count: int, chunk_size_mb: int, UserAgent: str):
             """保存配置"""
-            save_config(thread_count, chunk_size_mb)
+            save_config(thread_count, chunk_size_mb, UserAgent)
             return True
 
 
     # 在创建webview窗口时注册API
     api = Api()
     window: webview.Window = webview.create_window( # pyright: ignore[reportUnknownMemberType, reportAssignmentType]
-        'TT High Speed Downloader TT 高速下载器',
+        ' TT 高速下载器 GUI ',
         './files/index.html',
         width=850,
         height=850,
         js_api=api,
         # frameless=True,
         # text_select=False,
+        resizable=False,
         text_select=True,
     )
     
@@ -386,28 +493,14 @@ def main():
     # window
 
     running = True
-    # # 启动文件监控线程
-    # def start_file_watcher():
-    #     event_handler = FileChangeHandler(window)
-    #     observer = Observer()
-    #     observer.schedule(event_handler, './files', recursive=True)
-    #     observer.start()
-    #     try:
-    #         while running:
-    #             time.sleep(0.5)
-    #     except KeyboardInterrupt:
-    #         observer.stop()
-    #     observer.join()
     
-    # # 在后台线程中启动文件监控
-    # watcher_thread = threading.Thread(target=start_file_watcher, daemon=True)
-    # watcher_thread.start()
-    
+    watch.start(window, running) # pyright: ignore[reportUnknownMemberType]
+
     load_config()
 
     webview.start(
-        icon=os.path.join(pathlib.Path(__file__).parent.resolve(), './files/assets/TTHSD.ico'),
-        debug=True,
+        icon=os.path.join(pathlib.Path(__file__).parent.resolve(), f'./files/assets/Image/TTHSD_GUI.{'ico' if sys.platform.startswith('win') else 'icns'}'),
+        debug=not getattr(sys, 'frozen', False),
     )
 
     os._exit(0)

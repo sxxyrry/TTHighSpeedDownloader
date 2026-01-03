@@ -7,7 +7,9 @@ requires-python = ">=3.13"
 dependencies = [
     "pytest>=9.0.2",
     "pywebview>=6.1",
+    "requests>=2.32.5",
     "websockets>=15.0.1",
+    "wxpython>=4.2.4",
 ]
 
 [dependency-groups]

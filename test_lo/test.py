@@ -1,3 +1,5 @@
+# 请阅读 [Python Test Case](/docs/Python test case.md) 文档，此 Py 文件 已经过时！
+
 import ctypes
 from hashlib import md5
 import os

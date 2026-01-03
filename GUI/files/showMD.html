@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title></title>
+  <script src="./package/Marked/marked.umd.js"></script>
+  <link rel="stylesheet" href="./assets/fonts/sliced/SarasaMonoSC/font.css">
+  <style>
+    body {
+      background: #181818;
+      margin: 10px;
+      font-family: 'SarasaMonoSC-ExtraLightItalic';
+    }
+
+    * {
+      color: #dbe2fa;
+      font-family: 'SarasaMonoSC-ExtraLightItalic';
+    }
+
+    #MDContent {
+      min-height: 4vh;
+      max-height: 50vh;
+      overflow: scroll;
+      border-radius: 8px;
+      border: #42446b solid 1px;
+      /* 自动换行 */
+      /* word-wrap: break-word;
+      word-break: break-word;
+      white-space: pre-wrap; */
+    }
+
+    #MDContent::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    #MDContent::-webkit-scrollbar-track {
+      background: #181818;
+      border-radius: 4px;
+    }
+
+    #MDContent::-webkit-scrollbar-thumb {
+      background: #42446b;
+      border-radius: 4px;
+    }
+
+    #MDContent::-webkit-scrollbar-thumb:hover {
+      background: #5e4499;
+    }
+
+    blockquote {
+      background: #3f3f3f;
+      border-radius: 8px;
+      padding-left: 4vw;
+      margin: 0;
+      position: relative;
+    }
+
+    blockquote::after {
+      content: '';
+      /* background: #8b8dee; */
+      background: #353535;
+      display: block;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 3.5vw;
+      height: 100%;
+      /* border-radius: 8px 0 0 8px; */
+      border-radius: 8px;
+    }
+
+    ul li {
+      margin: -3vh 0 -3vh 0;
+    }
+
+    li p {
+      margin-bottom: 0;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+      margin: 0;
+    }
+    </style>
+</head>
+<body>
+  <pre id="MDContent"></pre>
+
+  <script type="module">
+    import { getBase64DecodedContent } from './tools.js'
+
+    // const url = new URL(location.href)
+    const content = getBase64DecodedContent('content')
+    
+    if (content) {
+      document.getElementById('MDContent').innerHTML = marked.parse(content)
+    } else {
+      document.getElementById('MDContent').innerHTML = '未知内容'
+    }
+  </script>
+</body>
+</html>

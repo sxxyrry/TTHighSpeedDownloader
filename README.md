@@ -1,16 +1,17 @@
-# TT High Speed Downloader TT 高速下载器
+# TT High Speed Downloader TT 高速下载器 ![1767417802741](images/README/1767417802741.png)
 
 TT High Speed Downloader TT 高速下载器 是一个高性能的多线程文件下载器，支持并发下载、断点续传和进度监控。该项目使用 Go 语言开发。编译为 dll 或者 so （可惜作者不知道发布Linux之类的要编译多少个 so 文件）供全平台、全语言调用。
 
 ## 功能特性
 
 - 多线程并发下载，提高下载速度
-- 支持多个文件下载（不是同时下载，因为现在可能会存在回调被同时调用）
+- 支持多个文件下载
 - 实时进度监控和速度计算
 - 暂停和恢复下载功能
 - 支持自定义线程数和分块大小
 - 提供 C 接口，支持 多语言调用
-- 支持任务信息（URL、保存路径、显示名称）
+- 支持任务信息（ URL、保存路径、显示名称、ID ）
+- 回调是异步的，不会阻塞主线程
 
 ## 许可证
 
@@ -30,9 +31,9 @@ TT High Speed Downloader TT 高速下载器 是一个高性能的多线程文件
 
 将 [TTHighSpeedDownloader.dll](./build/Windows/TTHighSpeedDownloader.dll) (Windows) 或 [TTHighSpeedDownloader.so](./build/Linux/libTTHighSpeedDownloader.so) (Linux（Ubuntu 22.04.5 LTS，因为作者只有这个虚拟机*）) 文件放置在您的项目目录中。
 
-## API 参数说明
+## API 说明
 
-[API 参数说明](./docs/API%20Parameter%20Description.md)
+[API 说明](./docs/API%20Description.md)
 
 ## 使用的 Go 库
 
@@ -45,12 +46,14 @@ TT High Speed Downloader TT 高速下载器 是一个高性能的多线程文件
 ## 任务数据格式
 
 任务数据使用JSON格式，每个任务包含以下字段：
+
 - URL: 下载链接
 - SavePath: 保存路径
 - ShowName: 显示名称
 - ID : 下载任务 ID （字符串，任意格式）
 
 示例：
+
 ```json
 [
   {
@@ -75,6 +78,7 @@ TT High Speed Downloader TT 高速下载器 是一个高性能的多线程文件
 - 多文件下载时 URL 数量和保存路径数量必须一致
 - 分块大小根据文件大小自动调整，避免过小或过大
 - 线程数会根据分块数量自动调整，确保不超过分块数量
+- 回调提供的更新消息下载量是绝对的
 
 ## Python 测试用例
 

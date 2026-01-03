@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title></title>
+  <!-- <script src="./package/Marked/marked.umd.js"></script> -->
+  <link rel="stylesheet" href="./assets/fonts/sliced/SarasaMonoSC/font.css">
+  <style>
+    body {
+      background: #181818;
+      margin: 10px;
+      font-family: 'SarasaMonoSC-ExtraLightItalic';
+    }
+
+    * {
+      color: #dbe2fa;
+      font-family: 'SarasaMonoSC-ExtraLightItalic';
+    }
+
+    #Content {
+      min-height: 4vh;
+      max-height: 50vh;
+      overflow-x: scroll;
+      border-radius: 8px;
+      border: #42446b solid 1px;
+      /* overflow-y: scroll; */
+      word-wrap: break-word;
+      word-break: break-word;
+      white-space: normal; /* 改为 normal 以启用自动换行 */
+      line-height: 1.5;
+    }
+
+    .line-break {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      vertical-align: middle;
+      margin-left: 2px;
+    }
+
+    #Content::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    #Content::-webkit-scrollbar-track {
+      background: #181818;
+      border-radius: 4px;
+    }
+
+    #Content::-webkit-scrollbar-thumb {
+      background: #42446b;
+      border-radius: 4px;
+    }
+
+    #Content::-webkit-scrollbar-thumb:hover {
+      background: #5e4499;
+    }
+  </style>
+</head>
+<body>
+  <div id="Content"></div>
+
+  <p style="color: rgb(121, 121, 121); font-size: 15px;">
+    提示：文字会自动换行，<br>
+    &nbsp;&nbsp;自动换行会在结尾增加 “<svg xmlns="http://www.w3.org/2000/svg" width="16px" height="16px" viewBox="0 0 24 24"><path fill="#808080" d="M19 7v4H5.83l3.58-3.59L8 6l-6 6l6 6l1.41-1.41L5.83 13H21V7z"></path></svg>”<br>
+    &nbsp;&nbsp;如果你看到的在下一行，也是自动换行了！
+  </p>
+
+  <script type="module">
+    import { getBase64DecodedContent } from './tools.js'
+
+    // const url = new URL(location.href)
+    const content = getBase64DecodedContent('content')
+
+    function addLineBreakSymbols() {
+      const container = document.getElementById('Content');
+      if (content.length === 0) {
+        container.innerHTML = '未知内容';
+        return
+      }
+      const words = content.split(''); // 按字符分割
+      container.innerHTML = ''; // 清空容器
+      
+      let currentLine = '';
+      const lineWidthElement = document.createElement('span');
+      lineWidthElement.style.visibility = 'hidden';
+      lineWidthElement.style.whiteSpace = 'nowrap';
+      lineWidthElement.style.position = 'absolute';
+      lineWidthElement.style.font = window.getComputedStyle(container).font;
+      document.body.appendChild(lineWidthElement);
+      
+      // 获取容器的宽度
+      const containerWidth = container.clientWidth - 20; // 减去一些边距
+      const result = document.createDocumentFragment(); // 使用文档片段提高性能
+      
+      for (let i = 0; i < words.length; i++) {
+        const char = words[i];
+        const testLine = currentLine + char;
+        lineWidthElement.textContent = testLine;
+        
+        if (char === '\n') {
+          // 遇到换行符，添加当前行内容并换行，但不添加SVG
+          if (currentLine) {
+            result.appendChild(document.createTextNode(currentLine));
+          }
+          result.appendChild(document.createElement('br'));
+          currentLine = '';
+        } else if (lineWidthElement.clientWidth > containerWidth) {
+          // 当前行超出容器宽度时，需要自动换行
+          // 找到最后一个空格或制表符作为断点
+          let breakPoint = -1;
+          for (let j = currentLine.length - 1; j >= 0; j--) {
+            if (currentLine[j] === ' ' || currentLine[j] === '\t') {
+              breakPoint = j;
+              break;
+            }
+          }
+          
+          if (breakPoint > 0) {
+            // 在断点处分割行，添加前半部分和SVG
+            const beforeBreak = currentLine.substring(0, breakPoint + 1);
+            result.appendChild(document.createTextNode(beforeBreak));
+            
+            // 添加换行符SVG图标
+            const div = document.createElement('div');
+            div.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16px" height="16px" viewBox="0 0 24 24"><path fill="#808080" d="M19 7v4H5.83l3.58-3.59L8 6l-6 6l6 6l1.41-1.41L5.83 13H21V7z"></path></svg>';
+            div.alt = 'line break';
+            div.className = 'line-break';
+            result.appendChild(div);
+            result.appendChild(document.createElement('br'));
+            
+            // 将断点后的部分和当前字符作为新行内容
+            currentLine = currentLine.substring(breakPoint + 1) + char;
+          } else {
+            // 如果没有找到空格或制表符，直接添加SVG并开始新行
+            if (currentLine.length > 0) {
+              // 添加当前行的所有内容
+              result.appendChild(document.createTextNode(currentLine));
+              
+              // 添加换行符SVG图标
+              const div = document.createElement('div');
+              div.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16px" height="16px" viewBox="0 0 24 24"><path fill="#808080" d="M19 7v4H5.83l3.58-3.59L8 6l-6 6l6 6l1.41-1.41L5.83 13H21V7z"></path></svg>';
+              div.alt = 'line break';
+              div.className = 'line-break';
+              result.appendChild(div);
+              result.appendChild(document.createElement('br'));
+              
+              // 新行只包含当前字符
+              currentLine = char;
+            }
+          }
+        } else {
+          currentLine += char;
+        }
+      }
+      
+      // 添加最后的行（不需要添加SVG）
+      if (currentLine) {
+        result.appendChild(document.createTextNode(currentLine));
+      }
+      
+      document.body.removeChild(lineWidthElement);
+      container.appendChild(result);
+    }
+
+    // 延迟执行，确保元素已渲染
+    setTimeout(addLineBreakSymbols, 100);
+    
+    // 监听窗口大小变化，重新计算
+    window.addEventListener('resize', addLineBreakSymbols);
+  </script>
+</body>
+</html>

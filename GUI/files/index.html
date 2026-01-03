@@ -3,25 +3,31 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TT High Speed Downloader TT 高速下载器</title>
+  <title> TT 高速下载器 GUI </title>
   <script type="module" src="https://unpkg.com/sober@1.1.8/dist/main.js"></script>
-  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <!-- <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script> -->
+  <!-- <script src="https://cdn.jsdelivr.net/npm/marked/lib/marked.umd.js"></script> -->
+  <script src="./package/Vue/vue.global.prod.js"></script>
+  <script src="./package/Marked/marked.umd.js"></script>
+  <link rel="stylesheet" href="./assets/fonts/sliced/SarasaMonoSC/font.css">
+  <!-- <link rel="stylesheet" href="./assets/fonts/sliced/SarasaMonoSC/font.css"> -->
   <style>
     body {
       background: #181818;
       margin: 10px;
-      font-family: Arial, sans-serif;
+      font-family: 'SarasaMonoSC-ExtraLightItalic';
     }
 
     * {
       color: #dbe2fa;
+      font-family: 'SarasaMonoSC-ExtraLightItalic';
     }
 
     .bar {
       display: grid;
       align-items: center;
       gap: 10px;
-      grid-template-columns: auto 1fr auto auto auto auto;
+      grid-template-columns: auto 1fr auto auto auto auto auto;
     }
 
     .bar .icon {
@@ -53,7 +59,6 @@
       border-radius: 10px;
       cursor: pointer;
       border: #181818 solid 1px;
-    
     }
 
     .bar s-ripple:active {
@@ -61,6 +66,26 @@
     }
 
     .bar s-ripple p {
+      color: #8b8dee;
+      color: #dbe2fa;
+      margin: 0;
+    }
+
+    s-ripple {
+      color: #7f59da;
+      background: transparent;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 10px;
+      cursor: pointer;
+      border: #181818 solid 1px;
+    }
+
+    s-ripple:active {
+      border: #7f59da solid 1px;
+    }
+
+    s-ripple p {
       color: #8b8dee;
       color: #dbe2fa;
       margin: 0;
@@ -76,7 +101,10 @@
       border-radius: 10px;
       padding: 20px;
       margin: 20px auto;
-      max-width: 600px;
+      width: 60vw;
+      max-width: 60vw;
+      height: 70vh;
+      max-height: 70vh;
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
     }
 
@@ -103,6 +131,13 @@
       border: 1px solid #5355cf;
       background: #181818;
       color: #fff;
+    }
+
+    .form-group .select-path-btn {
+      width: 100%;
+      /* justify-self: flex-start; */
+      text-align: center;
+      align-items: center;
     }
 
     .btn {
@@ -246,9 +281,12 @@
     }
 
     .task-list-inner {
-      min-height: 200px;
-      max-height: 300px;
+      height: 45vh;
+      max-height: 45vh;
       overflow-y: auto;
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     }
 
     .task-list-inner::-webkit-scrollbar {
@@ -296,6 +334,10 @@
       border-radius: 8px;
       padding: 15px;
       margin-bottom: 10px;
+      /* width: ; */
+      /* max-width: calc((get_width(.task-list-inner) - (10px *4))); */
+      max-width: 15vw;
+      max-height: 30vh;
     }
 
     .task-item-header {
@@ -368,6 +410,13 @@
       margin-top: 5px;
     }
 
+    .select-path-btn {
+      margin-top: 10px;
+      width: 100%;
+      max-width: 150px;
+      justify-self: flex-end;
+    }
+
     dialog {
       border-radius: 10px;
     }
@@ -388,9 +437,80 @@
 
     #VersionHistory {
       font-size: 15px;
-      min-height: 100px;
-      max-height: 100px;
-      overflow-y: scroll;
+      min-height: 4vh;
+      max-height: 50vh;
+      overflow: scroll;
+      border-radius: 8px;
+      border: #42446b solid 1px;
+    }
+
+    #README {
+      min-height: 4vh;
+      max-height: 50vh;
+      overflow: scroll;
+      border-radius: 8px;
+      border: #42446b solid 1px;
+    }
+
+    #README::-webkit-scrollbar,
+    #VersionHistory::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    #README::-webkit-scrollbar-track,
+    #VersionHistory::-webkit-scrollbar-track {
+      background: #181818;
+      border-radius: 4px;
+    }
+
+    #README::-webkit-scrollbar-thumb,
+    #VersionHistory::-webkit-scrollbar-thumb {
+      background: #42446b;
+      border-radius: 4px;
+    }
+
+    #README::-webkit-scrollbar-thumb:hover,
+    #VersionHistory::-webkit-scrollbar-thumb:hover {
+      background: #5e4499;
+    }
+
+    blockquote {
+      background: #3f3f3f;
+      border-radius: 8px;
+      padding-left: 4vw;
+      margin: 0;
+      position: relative;
+    }
+
+    blockquote::after {
+      content: '';
+      /* background: #8b8dee; */
+      background: #353535;
+      display: block;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 3.5vw;
+      height: 100%;
+      /* border-radius: 8px 0 0 8px; */
+      border-radius: 8px;
+    }
+
+    ul li {
+      margin: -3vh 0 -3vh 0;
+    }
+
+    li p {
+      margin-bottom: 0;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+      margin: 0;
     }
   </style>
 </head>
@@ -398,9 +518,9 @@
   <div id="app">
     <div class="bar">
       <span class="icon">
-        <img src="./assets/TTHSD.png" alt="Logo">
+        <img src="./assets/Image/TTHSD_GUI.png" alt="Logo">
       </span>
-      <span class="title">TT High Speed Downloader TT 高速下载器</span>
+      <span class="title"> TT 高速下载器 GUI </span>
       <div class="empty"></div>
       <!-- <button class="minimize" @click="minimize"><p>最小化</p></button>
       <button class="exit" @click="exit"><p>退出</p></button> -->
@@ -409,11 +529,12 @@
       <s-ripple class="about" @click="showInfoDialog"><p>&nbsp;关于&nbsp;</p></s-ripple>
       <s-ripple class="versionlog" @click="showVersionHistoryDialog"><p>&nbsp;版本历史&nbsp;</p></s-ripple>
       <s-ripple class="config" @click="showConfigDialog"><p>&nbsp;配置&nbsp;</p></s-ripple>
+      <s-ripple class="readme" @click="showREADMEDialog"><p>&nbsp;README&nbsp;</p></s-ripple>
       <!-- <s-ripple class="exit" @click="exit"><p>&nbsp;退出&nbsp;</p></s-ripple> -->
     </div>
 
     <div class="main-content">
-      <h1>TT HSD TT 高速下载器</h1>
+      <h1> TT 高速下载器 GUI </h1>
       
       <div class="download-card">
         <div v-if="!downloadStarted">
@@ -439,11 +560,12 @@
                 <div class="task-details">
                   <div class="form-group">
                     <label :for="'url-' + index">下载链接:</label>
-                    <input :id="'url-' + index" type="text" v-model="task.url" placeholder="请输入下载链接">
+                    <input :id="'url-' + index" type="text" v-model="task.url" @input="updateSavePath(index)" @blur="updateSavePath(index)" placeholder="请输入下载链接">
                   </div>
                   <div class="form-group">
                     <label :for="'savePath-' + index">保存路径:</label>
                     <input :id="'savePath-' + index" type="text" v-model="task.savePath" placeholder="请输入保存路径">
+                    <s-ripple :id="'selectPathBtn-' + index" class="btn select-path-btn" @click="selectSavePath(index)">&nbsp;选择路径&nbsp;</s-ripple>
                   </div>
                 </div>
                 <div v-if="task.error" class="error-message">{{ task.error }}</div>
@@ -513,21 +635,36 @@
 
   <dialog id="infoDialog">
     <div class="dialog-content">
-      <h2>关于 TT 高速下载器</h2>
+      <h2>关于 TT 高速下载器 GUI </h2>
       <p>版本：<span id="version"></span></p>
+      <p>内核版本：<span id="KernelVersion"></span></p>
       <p>制作者：是星星与然然呀（ 23XR Studio ）</p>
-      <p>支持多线程下载和分块。</p>
+      <p>使用 TT 高速下载器 内核。</p>
+      <div id="infoMD1"></div>
+      <!-- <s-ripple @click="showREADMEDialog"><p>&nbsp;README&nbsp;</p></s-ripple> -->
       <div class="dialog-actions">
         <button class="btn" id="closeDialog_info">关闭</button>
       </div>
     </div>
   </dialog>
+  <script>
+    document.getElementById('infoMD1').innerHTML = marked.parse('')
+  </script>
   <dialog id="VersionHistoryDialog">
     <div class="dialog-content">
       <h2>版本历史</h2>
       <pre id="VersionHistory"></pre>
       <div class="dialog-actions">
         <button class="btn" id="closeDialog_VerHis">关闭</button>
+      </div>
+    </div>
+  </dialog>
+  <dialog id="READMEDialog">
+    <div class="dialog-content">
+      <h2>README</h2>
+      <pre id="README"></pre>
+      <div class="dialog-actions">
+        <button class="btn" id="closeDialog_README">关闭</button>
       </div>
     </div>
   </dialog>
@@ -544,7 +681,12 @@
           <label for="chunkSizeMB">分块大小（ MB ）（默认10）：</label>
           <input type="number" id="chunkSizeMB" v-model="chunkSizeMB" min="1" />
         </div>
+        <div class="form-group">
+          <label for="UA">User Agent（默认①）：</label>
+          <input type="text" id="UA" v-model="UserAgent" />
+        </div>
       </form>
+      <p style="max-width: 30vw;color: rgb(121, 121, 121);">①：Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0</p>
       <p style="color: rgb(121, 121, 121);">提示：如果你看到的输入框是空，那就是默认</p>
       <div class="dialog-actions">
         <button class="btn" id="closeDialog_Config">关闭</button>
@@ -553,6 +695,7 @@
   </dialog>
 
   <script>
+    const port = window.location.port
 
     const { createApp, ref } = Vue;
 
@@ -562,10 +705,45 @@
     window.ThreadCount = ThreadCount
     const chunkSizeMB = ref(10);
     window.chunkSizeMB = chunkSizeMB
+    const UserAgent = ref('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0')
+    window.UserAgent = UserAgent
+    const README = ref('');
+    const KernelVersion = ref('');
     
+    window.addEventListener('click', (e) => {
+    
+      e.preventDefault()
+
+      if (e.target.nodeName === 'A') {
+        console.log(e.target.href)
+        if (e.target.href.startsWith(`http://127.0.0.1:${port}/files/`)) {
+          const url = `http://127.0.0.1:${port}/${e.target.href.substring(`http://127.0.0.1:${port}/files/`.length)}`
+          if (url.endsWith('.md') || url.endsWith('.Md') || url.endsWith('.mD') || url.endsWith('.MD')) {
+            window.pywebview.api.openMD(undefined, url).then().catch(error => {
+              console.error(error)
+            })
+          } else if (url.endsWith('/package/Marked/LICENSE')) {
+            window.pywebview.api.openMD(undefined, url).then().catch(error => {
+              console.error(error)
+            })
+          } else {
+            window.pywebview.api.openFile(undefined, url).then().catch(error => {
+              console.error(error)
+            })
+          }
+        } else if (e.target.href.endsWith('.md') || e.target.href.endsWith('.Md') || e.target.href.endsWith('.mD') || e.target.href.endsWith('.MD')) {
+          window.pywebview.api.openMD(undefined, e.target.href).then().catch(error => {
+            console.error(error)
+          })
+        } else {
+          window.pywebview.api.openURL(e.target.href);
+        }
+      }
+    })
+
     document.addEventListener('DOMContentLoaded', () => {
-      const dialog = document.getElementById('infoDialog');
-      const closeDialogBtn = document.getElementById('closeDialog_info');
+      var dialog = document.getElementById('infoDialog');
+      var closeDialogBtn = document.getElementById('closeDialog_info');
       
       // 添加打开对话框的方法到 Vue 应用中
       if (window.vueApp) {
@@ -587,8 +765,8 @@
       });
     });
     document.addEventListener('DOMContentLoaded', () => {
-      const dialog = document.getElementById('VersionHistoryDialog');
-      const closeDialogBtn = document.getElementById('closeDialog_VerHis');
+      var dialog = document.getElementById('VersionHistoryDialog');
+      var closeDialogBtn = document.getElementById('closeDialog_VerHis');
       
       // 添加打开对话框的方法到 Vue 应用中
       if (window.vueApp) {
@@ -610,12 +788,39 @@
       });
     });
     document.addEventListener('DOMContentLoaded', () => {
-      const dialog = document.getElementById('ConfigDialog');
-      const closeDialogBtn = document.getElementById('closeDialog_Config');
+      var dialog = document.getElementById('READMEDialog');
+      var closeDialogBtn = document.getElementById('closeDialog_README');
       
       // 添加打开对话框的方法到 Vue 应用中
       if (window.vueApp) {
-        window.vueApp.showVersionHistoryDialog = function() {
+        window.vueApp.showREADMEDialog = function() {
+          const dialog_info = document.getElementById('infoDialog');
+          if (dialog_info) {
+            dialog_info.close();
+          }
+          dialog.showModal();
+        };
+      }
+      
+      // 关闭对话框事件
+      closeDialogBtn.addEventListener('click', () => {
+        dialog.close();
+      });
+      
+      // 点击对话框外部关闭对话框
+      dialog.addEventListener('click', (event) => {
+        if (event.target === dialog) {
+          dialog.close();
+        }
+      });
+    });
+    document.addEventListener('DOMContentLoaded', () => {
+      var dialog = document.getElementById('ConfigDialog');
+      var closeDialogBtn = document.getElementById('closeDialog_Config');
+      
+      // 添加打开对话框的方法到 Vue 应用中
+      if (window.vueApp) {
+        window.vueApp.showConfigDialog = function() {  // 修复函数名错误
           dialog.showModal();
         };
       }
@@ -624,28 +829,34 @@
       closeDialogBtn.addEventListener('click', () => {
         dialog.close();
         // 保存配置
-        window.pywebview.api.save_Config(
-          window.ThreadCount.value, 
-          window.chunkSizeMB.value
-        ).then(() => {
-          console.log('配置已保存');
-        }).catch(error => {
-          console.error('保存配置失败:', error);
-        });
+        if (window.vueApp) {
+          window.pywebview.api.save_Config(
+            window.vueApp.ThreadCount,
+            window.vueApp.chunkSizeMB,
+            window.vueApp.UserAgent
+          ).then(() => {
+            console.log('配置已保存');
+          }).catch(error => {
+            console.error('保存配置失败:', error);
+          });
+        }
       });
       
       // 点击对话框外部关闭对话框
       dialog.addEventListener('click', (event) => {
         if (event.target === dialog) {
           // 保存配置
-          window.pywebview.api.save_Config(
-            window.ThreadCount.value, 
-            window.chunkSizeMB.value
-          ).then(() => {
-            console.log('配置已保存');
-          }).catch(error => {
-            console.error('保存配置失败:', error);
-          });
+          if (window.vueApp) {
+            window.pywebview.api.save_Config(
+              window.vueApp.ThreadCount,
+              window.vueApp.chunkSizeMB,
+              window.vueApp.UserAgent
+            ).then(() => {
+              console.log('配置已保存');
+            }).catch(error => {
+              console.error('保存配置失败:', error);
+            });
+          }
           dialog.close();
         }
       });
@@ -669,8 +880,15 @@
           taskIndexMap: {}, // 用于映射任务索引
           version: '加载中...',
           versionLog: '加载中...',
+          README: '加载中...',
+          KernelVersion: '加载中...',
           loadingVersion: true,
-          loadingVersionLog: true
+          loadingVersionLog: true,
+          loadingREADME: true,
+          loadingVersionHistory: true,
+          ThreadCount: 64,  // 添加ThreadCount默认值
+          chunkSizeMB: 10,  // 添加chunkSizeMB默认值
+          UserAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0'  // 添加UserAgent默认值
         }
       },
       computed: {
@@ -687,6 +905,169 @@
         },
         exit() {
           window.pywebview.api.exit(0);
+        },
+        selectSavePath(index) {
+          // 调用后端API打开文件夹选择对话框
+          window.pywebview.api.selectPath({
+            title: '选择文件保存路径',
+            defaultPath: this.tasks[index].savePath || ''
+          }).then(result => {
+            if (result.selectedPath) {
+              // 如果用户选择了路径，则更新任务的保存路径
+              const currentUrl = this.tasks[index].url;
+              if (currentUrl) {
+                const filename = this.getFilenameFromUrl(currentUrl);
+                // 检查所选路径是否已经是完整文件路径（包含扩展名）
+                const pathParts = result.selectedPath.split(/[\/\\]/);
+                const lastPart = pathParts[pathParts.length - 1];
+                
+                if (lastPart && lastPart.includes('.')) {
+                  // 如果所选路径已经是完整文件路径，则直接使用
+                  this.tasks[index].savePath = result.selectedPath;
+                } else {
+                  // 如果所选路径只是一个目录，则加上从URL提取的文件名
+                  const separator = result.selectedPath.endsWith('/') || result.selectedPath.endsWith('\\') ? '' : '/';
+                  this.tasks[index].savePath = result.selectedPath + separator + filename;
+                }
+              } else {
+                // 如果没有URL，直接使用选择的路径
+                this.tasks[index].savePath = result.selectedPath;
+              }
+              // 清除之前的错误信息（如果有）
+              this.tasks[index].error = null;
+            } else if (result.msg) {
+              // 如果用户取消了选择或出现错误，可以显示提示信息
+              this.tasks[index].error = result.msg;
+              console.log(result.msg);
+            }
+          }).catch(error => {
+            console.error('选择保存路径时出错:', error);
+            this.tasks[index].error = '选择保存路径失败: ' + error.message;
+          });
+        },
+        // 添加获取文件名的函数
+        getFilenameFromUrl(url) {
+          try {
+            // 创建 URL 对象来解析 URL
+            const urlObj = new URL(url);
+            // 获取路径部分
+            const pathname = urlObj.pathname;
+            // 获取路径的最后一部分作为文件名
+            let filename = pathname.split('/').pop();
+            
+            // 如果路径的最后一部分有扩展名，则认为是文件名
+            if (filename && filename.includes('.')) {
+              // 确保文件名不包含特殊字符，只保留合法的文件名字符
+              filename = filename.replace(/[<>:"/\\|?*]/g, '_');
+              return filename;
+            }
+            
+            // 从查询参数中尝试获取文件名
+            const params = new URLSearchParams(urlObj.search);
+            // 检查常见参数名，如 filename, file, name 等
+            for (const param of ['filename', 'file', 'name', 'download', 'path']) {
+              if (params.has(param)) {
+                let paramValue = params.get(param);
+                // 如果参数值包含路径分隔符，只取最后一部分
+                paramValue = paramValue.split('/').pop().split('\\').pop();
+                if (paramValue && paramValue.includes('.')) {
+                  paramValue = paramValue.replace(/[<>:"/\\|?*]/g, '_');
+                  return paramValue;
+                }
+              }
+            }
+            
+            // 如果路径最后部分没有扩展名，尝试其他方法
+            if (pathname !== '/') {
+              // 从路径中提取可能的文件名
+              const pathParts = pathname.split('/');
+              for (let i = pathParts.length - 1; i >= 0; i--) {
+                const part = pathParts[i];
+                if (part && part.includes('.')) {
+                  const cleanPart = part.replace(/[<>:"/\\|?*]/g, '_');
+                  return cleanPart;
+                }
+              }
+            }
+            
+            // 如果还是没有找到合适的文件名，生成一个默认名称
+            return 'downloaded_file';
+          } catch (e) {
+            // 如果 URL 无效，尝试简单的字符串处理
+            try {
+              // 移除查询参数和锚点
+              let cleanUrl = url.split('?')[0].split('#')[0];
+              // 获取最后一个路径部分
+              let filename = cleanUrl.split('/').pop();
+              
+              if (filename && filename.includes('.')) {
+                filename = filename.replace(/[<>:"/\\|?*]/g, '_');
+                return filename;
+              }
+              
+              // 从原始 URL 中尝试获取带扩展名的部分
+              const urlParts = url.split('/');
+              for (let i = urlParts.length - 1; i >= 0; i--) {
+                const part = urlParts[i];
+                if (part && part.includes('.')) {
+                  let cleanPart = part.split('?')[0].split('#')[0];
+                  cleanPart = cleanPart.replace(/[<>:"/\\|?*]/g, '_');
+                  return cleanPart;
+                }
+              }
+              
+              // 如果所有方法都失败，返回默认名称
+              return 'downloaded_file';
+            } catch (e2) {
+              return 'downloaded_file';
+            }
+          }
+        },
+        // 当 URL 发生变化时自动更新保存路径
+        updateSavePath(index) {
+          const task = this.tasks[index];
+          if (task.url) {
+            if (task.savePath) {
+              // 检查当前保存路径是否已经是完整文件路径（包含扩展名）
+              const pathParts = task.savePath.split(/[\/\\]/);
+              const lastPart = pathParts[pathParts.length - 1];
+              
+              if (lastPart && lastPart.includes('.')) {
+                // 如果当前保存路径已经是完整文件路径，不替换它
+                // 但是我们可以检查是否需要更新文件名
+                const currentFilename = lastPart;
+                const newFilename = this.getFilenameFromUrl(task.url);
+                
+                // 如果用户已经自定义了文件名，不覆盖
+                if (currentFilename !== newFilename && 
+                    currentFilename !== 'downloaded_file' && 
+                    !task.savePath.endsWith('/' + newFilename) && 
+                    !task.savePath.endsWith('\\' + newFilename)) {
+                  // 保留路径部分，只更新文件名（可选）
+                  // 为简单起见，我们不自动更新已手动设置的文件名
+                }
+              } else {
+                // 如果当前保存路径只是一个目录或没有扩展名的名称，则更新
+                const filename = this.getFilenameFromUrl(task.url);
+                if (filename && filename !== 'downloaded_file') {
+                  const separator = task.savePath.endsWith('/') || task.savePath.endsWith('\\') ? '' : '/';
+                  task.savePath = task.savePath + separator + filename;
+                } else if (!task.savePath) {
+                  // 如果无法从URL获取有意义的文件名，至少设置一个默认值
+                  task.savePath = filename;
+                }
+              }
+            } else {
+              // 如果保存路径为空，直接使用从URL提取的文件名
+              const filename = this.getFilenameFromUrl(task.url);
+              if (filename && filename !== 'downloaded_file') {
+                task.savePath = filename;
+              } else if (!task.savePath) {
+                // 如果无法从URL获取有意义的文件名，至少设置一个默认值
+                task.savePath = filename;
+              }
+            }
+          }
         },
         showInfoDialog() {
           const dialog = document.getElementById('infoDialog');
@@ -706,8 +1087,18 @@
             dialog.showModal();
           }
         },
+        showREADMEDialog() {
+          const dialog_info = document.getElementById('infoDialog');
+          if (dialog_info) {
+            dialog_info.close();
+          }
+          const dialog = document.getElementById('READMEDialog');
+          if (dialog) {
+            dialog.showModal();
+          }
+        },
         addTask() {
-          this.tasks.push({
+          const newTask = {
             url: '',
             savePath: '',
             status: 'pending',
@@ -716,7 +1107,36 @@
             total: 0,
             speed: 0,
             error: null
+          };
+          
+          this.tasks.push(newTask);
+          
+          // 添加任务后重新计算宽度
+          this.$nextTick(() => {
+            this.updateTaskItemWidths();
           });
+        },
+        updateTaskItemWidths() {
+          // 获取 .task-list-inner 元素
+          const taskListInner = document.querySelector('.task-list-inner');
+          if (taskListInner) {
+            // 重新计算CSS Grid的列宽，使用JavaScript动态设置
+            const gap = 10; // CSS中定义的gap值
+            const columns = Math.max(Math.floor(taskListInner.clientWidth / 250), 1); // 基于最小宽度250px计算列数
+            const totalGaps = (columns - 1) * gap;
+            const columnWidth = (taskListInner.clientWidth - totalGaps) / columns;
+            
+            // 为每个任务项设置最大宽度
+            const taskItems = document.querySelectorAll('.task-item');
+            taskItems.forEach(item => {
+              if (columnWidth > 0) {
+                item.style.maxWidth = columnWidth + 'px';
+                item.style.width = 'auto'; // 确保宽度可以调整
+              } else {
+                item.style.maxWidth = '15vw'; // 回退到原始值
+              }
+            });
+          }
         },
         removeTask(index) {
           this.tasks.splice(index, 1);
@@ -845,11 +1265,14 @@
                 
               case 'startOne':
                 // 单个任务开始下载
+                const taskId = msgData.ID; // 使用任务ID
                 const index = msgData.Index - 1; // 转换为0基索引
                 if (index >= 0 && index < this.tasks.length) {
                   this.tasks[index].status = 'downloading';
                   this.tasks[index].total = msgData.Total || 0;
                   this.tasks[index].error = null;
+                  // 建立ID到索引的映射
+                  this.taskIndexMap[taskId] = index;
                 }
                 break;
                 
@@ -857,15 +1280,31 @@
                 // 进度更新
                 const progress = data.progress;
                 if (progress) {
-                  // 这里需要根据实际情况确定如何映射到具体任务
-                  // 简单处理：更新第一个正在下载的任务
-                  const downloadingTask = this.tasks.find(task => task.status === 'downloading');
-                  if (downloadingTask) {
-                    downloadingTask.downloaded = progress.downloaded;
-                    downloadingTask.total = progress.total;
-                    downloadingTask.speed = progress.speed;
-                    if (progress.total > 0) {
-                      downloadingTask.progress = (progress.downloaded / progress.total) * 100;
+                  // 使用任务ID精确匹配，而不是简单查找第一个下载中的任务
+                  const taskId = data.name; // 或者从其他字段获取任务标识
+                  const taskIndex = this.taskIndexMap[taskId];
+                  
+                  if (taskIndex !== undefined) {
+                    // 使用映射的索引更新特定任务
+                    const task = this.tasks[taskIndex];
+                    if (task) {
+                      task.downloaded = progress.downloaded;
+                      task.total = progress.total;
+                      task.speed = progress.speed;
+                      if (progress.total > 0) {
+                        task.progress = (progress.downloaded / progress.total) * 100;
+                      }
+                    }
+                  } else {
+                    // 如果没有找到特定任务，仍然查找第一个下载中的任务作为后备方案
+                    const downloadingTask = this.tasks.find(task => task.status === 'downloading');
+                    if (downloadingTask) {
+                      downloadingTask.downloaded = progress.downloaded;
+                      downloadingTask.total = progress.total;
+                      downloadingTask.speed = progress.speed;
+                      if (progress.total > 0) {
+                        downloadingTask.progress = (progress.downloaded / progress.total) * 100;
+                      }
                     }
                   }
                 }
@@ -927,21 +1366,27 @@
         window.vueApp = this; 
         document.getElementById('version').innerText = '加载中...';
         document.getElementById('VersionHistory').innerText = '加载中...';
-        // document.getElementById('ThreadCount').value = '加载中...';
-        // document.getElementById('chunkSizeMB').value = '加载中...';
+        document.getElementById('README').innerText = '加载中...';
+        document.getElementById('KernelVersion').innerText = '加载中...';
+
 
         // 加载配置
         if (window.pywebview && window.pywebview.api) {
           window.pywebview.api.get_Config().then(config => {
-            // console
-            window.ThreadCount.value = config.thread_count;
-            window.chunkSizeMB.value = config.chunk_size_mb;
-            // document.getElementById('ThreadCount').value = config.thread_count;
-            // document.getElementById('chunkSizeMB').value = config.chunk_size_mb;
+            // 更新Vue实例中的值
+            this.ThreadCount = config.thread_count || 64;
+            this.chunkSizeMB = config.chunk_size_mb || 10;
+            this.UserAgent = config.UA || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0';
+            window.ThreadCount.value = this.ThreadCount;
+            window.chunkSizeMB.value = this.chunkSizeMB;
+            this.UserAgent.value = this.UserAgent
           }).catch(error => {
             console.error('加载配置失败:', error);
           });
         }
+        window.addEventListener('resize', (e) => {
+          this.updateTaskItemWidths()
+        })
       },
       beforeUnmount() {
         // 清理全局引用
@@ -959,6 +1404,14 @@
 function initializeAPI() {
   // 检查API是否已准备好
   if (window.pywebview && window.pywebview.api) {
+    if (!(typeof window.pywebview.api.get_Version === 'function' &&
+      typeof window.pywebview.api.get_VersionHistory === 'function' &&
+      typeof window.pywebview.api.get_README === 'function' &&
+      typeof window.pywebview.api.get_KernelVersion === 'function')) {
+      setTimeout(initializeAPI, 100);
+      return;
+    }
+      
     // 获取版本信息
     window.pywebview.api.get_Version().then(version_ => {
       if (window.vueApp) {
@@ -986,6 +1439,51 @@ function initializeAPI() {
         window.vueApp.versionLog = '未知版本历史';
         document.getElementById('VersionHistory').innerText = window.vueApp.versionLog;
         window.vueApp.loadingVersionHistory = false;
+      }
+    });
+
+    // 获取版本日志
+    window.pywebview.api.get_KernelVersion().then(KernelVersion_ => {
+      if (window.vueApp) {
+        window.vueApp.KernelVersion = KernelVersion_;
+        document.getElementById('KernelVersion').innerText = window.vueApp.KernelVersion;
+        window.vueApp.loadingKernelVersion = false;
+      }
+    }).catch(error => {
+      if (window.vueApp) {
+        window.vueApp.KernelVersion = '未知版本';
+        document.getElementById('KernelVersion').innerText = window.vueApp.KernelVersion;
+        window.vueApp.loadingKernelVersion = false;
+      }
+    });
+
+    // 获取 README
+    window.pywebview.api.get_README().then(README => {
+      if (window.vueApp) {
+        window.vueApp.README = README;
+        // 使用marked解析，配置相对路径以正确处理图片
+        const renderer = new marked.Renderer();
+        // 重写图片渲染，修正相对路径
+        const originalImageRenderer = renderer.image;
+        renderer.image = function(img, title, text) {
+          // 如果是相对路径的图片，修正为相对于assets目录的路径
+          let href = img.href
+          console.log('原始 href:', href);
+          if (href && typeof href === 'string' && !href.startsWith('http') && href.startsWith('./files/images/')) {
+            img.href = './' + href.substring('./files/'.length);
+          }
+
+          return originalImageRenderer.call(this, img, title, text);
+        };
+        document.getElementById('README').innerHTML = marked.parse(window.vueApp.README, { renderer: renderer });
+        window.vueApp.loadingREADME = false;
+      }
+    }).catch(error => {
+      console.error('加载 README 失败:', error);
+      if (window.vueApp) {
+        window.vueApp.README = '未知 README';
+        document.getElementById('README').innerHTML = marked.parse(window.vueApp.README);
+        window.vueApp.loadingREADME = false;
       }
     });
   } else {

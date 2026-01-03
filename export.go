@@ -216,6 +216,43 @@ func startDownload(
     chunkSizeMB C.int,
     callback unsafe.Pointer,
     useCallbackURL C._Bool,
+    userAgent *C.char,
+    remoteCallbackUrl *C.char,
+    useSocket *C._Bool,
+) C.int {
+    downloaderID := getDownloader(tasksData, taskCount, threadCount, chunkSizeMB, callback, useCallbackURL, userAgent, remoteCallbackUrl, useSocket)
+    
+    downloader, exists := downloaders[int(downloaderID)]
+    if !exists {
+        return -1
+    }
+
+    go func() {
+        err := downloader.StartDownload()
+        if err != nil {
+            // fmt.Printf("下载错误：%v\n", err)
+            downloader.SendMessage(Event{
+                Type: EventTypeMsg,
+                Name: "错误",
+                ShowName: "全局",
+            }, map[string]interface{}{
+                "Error": err.Error(),
+            })
+        }
+    }()
+    
+    return C.int(downloaderID)
+}
+
+//export getDownloader
+func getDownloader(
+    tasksData *C.char,       // JSON格式的任务数据
+    taskCount C.int,         // 任务数量
+    threadCount C.int,
+    chunkSizeMB C.int,
+    callback unsafe.Pointer,
+    useCallbackURL C._Bool,
+    userAgent *C.char,
     remoteCallbackUrl *C.char,
     useSocket *C._Bool,
 ) C.int {
@@ -241,12 +278,13 @@ func startDownload(
     }
     
     config := &DownloadConfig{
-        Tasks:          tasks,
-        ThreadCount:    int(threadCount),
-        ChunkSizeMB:    int(chunkSizeMB),
-        useCallbackURL: bool(useCallbackURL),
-        CallbackURL:    callbackURL,
-        useSocket:      useSocketVal,
+        Tasks:           tasks,
+        ThreadCount:     int(threadCount),
+        ChunkSizeMB:     int(chunkSizeMB),
+        useCallbackURL:  bool(useCallbackURL),
+        CallbackURL:     callbackURL,
+        useSocket:       useSocketVal,
+        userAgent:       C.GoString(userAgent),
     }
     
     // 设置回调函数
@@ -275,42 +313,30 @@ func startDownload(
     downloaderID++
     downloaders[downloaderID] = downloader
     
-    err := downloader.StartDownload()
-    if err != nil {
-        fmt.Printf("下载错误：%v\n", err)
-        return -1
-    }
-    
     return C.int(downloaderID)
 }
 
-//export getDownloader
-func getDownloader(
-    tasksData *C.char,       // JSON格式的任务数据
-    taskCount C.int,         // 任务数量
-    threadCount C.int,
-    chunkSizeMB C.int,
-) C.int {
-    // 解析JSON任务数据
-    tasksJSON := C.GoString(tasksData)
-    var tasks []DownloadTask
-    
-    if err := json.Unmarshal([]byte(tasksJSON), &tasks); err != nil {
-        fmt.Printf("解析任务数据失败：%v\n", err)
+//export startDownload_ID
+func startDownload_ID(id C.int) C.int {
+    downloader, exists := downloaders[int(id)]
+    if !exists {
         return -1
     }
-    
-    config := &DownloadConfig{
-        Tasks:       tasks,
-        ThreadCount: int(threadCount),
-        ChunkSizeMB: int(chunkSizeMB),
-    }
-    
-    downloader := NewFastDownloader(config)
-    downloaderID++
-    downloaders[downloaderID] = downloader
-    
-    return C.int(downloaderID)
+
+    go func() {
+        err := downloader.StartDownload()
+        if err != nil {
+            // fmt.Printf("下载错误：%v\n", err)
+            downloader.SendMessage(Event{
+                Type: EventTypeMsg,
+                Name: "错误",
+                ShowName: "全局",
+            }, map[string]interface{}{
+                "Error": err.Error(),
+            })
+        }
+    }()
+    return 0
 }
 
 //export pauseDownload
