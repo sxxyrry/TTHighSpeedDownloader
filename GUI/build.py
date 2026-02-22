@@ -6,8 +6,8 @@ import sys
 
 def build():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--platform', choices=['Windows', 'Linux', 'MacOS'], 
-                       help='指定目标平台 (Windows/Linux/MacOS)')
+    parser.add_argument('--platform', choices=['windows', 'linux', 'darwin'], 
+                       help='指定目标平台 (windows/linux/darwin)')
     args = parser.parse_args()
     
     # 获取当前脚本目录
@@ -18,11 +18,11 @@ def build():
     target_platform = args.platform
     if not target_platform:
         if sys.platform.startswith('win'):
-            target_platform = 'Windows'
+            target_platform = 'windows'
         elif sys.platform == 'darwin':
-            target_platform = 'MacOS'
+            target_platform = 'darwin'
         else:
-            target_platform = 'Linux'
+            target_platform = 'linux'
 
     # 构建PyInstaller命令参数
     pyinstaller_args = [
