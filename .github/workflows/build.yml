@@ -63,13 +63,12 @@ jobs:
         echo "GOOS=${{ matrix.goos }}" >> $GITHUB_ENV
         echo "GOARCH=${{ matrix.arch }}" >> $GITHUB_ENV
 
-    - name: 安装Windows ARM64交叉编译工具链
+    - name: Setup MSYS2 for ARM64 cross-compilation
       if: matrix.os == 'windows-latest' && matrix.arch == 'arm64'
-      shell: bash
-      run: |
-        pacman -Syu --noconfirm
-        pacman -S --noconfirm clang
-        echo "C:\msys64\usr\bin" >> $GITHUB_PATH
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: MINGW64
+        install: clang
       
     - name: 编译 Go 应用程序
       shell: bash
