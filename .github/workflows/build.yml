@@ -44,8 +44,6 @@ jobs:
 
     - name: 检出代码仓库
       uses: actions/checkout@v4
-      with:
-        working-directory: TTHighSpeedDownloader
 
     - name: 设置 Go 环境
       uses: actions/setup-go@v5
@@ -54,7 +52,6 @@ jobs:
 
     - name: 安装 Go 库
       shell: bash
-      working-directory: TTHighSpeedDownloader
       run: |
         go get github.com/gorilla/websocket@v1.5.3
         go mod tidy
@@ -77,7 +74,6 @@ jobs:
       
     - name: 编译 Go 应用程序
       shell: bash
-      working-directory: TTHighSpeedDownloader
       run: |
         set -x
 
@@ -115,7 +111,6 @@ jobs:
 
     - name: 检查构建产物
       shell: bash
-      working-directory: TTHighSpeedDownloader
       run: |
         ls -la TTHighSpeedDownloader_* || echo "No build artifacts found"
 
@@ -123,7 +118,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: go-binary-${{ matrix.os }}-${{ matrix.arch }}
-        path: TTHighSpeedDownloader/TTHighSpeedDownloader_${{ matrix.arch }}.*
+        path: TTHighSpeedDownloader_${{ matrix.arch }}.*
         if-no-files-found: error
 
   build-gui:
