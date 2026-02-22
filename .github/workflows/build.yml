@@ -134,21 +134,11 @@ jobs:
         arch: [amd64, arm64]
         include:
           - os: windows-latest
-            platform: Windows
             goos: windows
           - os: ubuntu-latest
-            platform: Linux
             goos: linux
           - os: macos-latest
-            platform: MacOS
             goos: darwin
-        exclude:
-          - os: ubuntu-latest
-            arch: arm64
-          - os: macos-latest
-            arch: arm64
-          - os: windows-latest
-            arch: arm64
 
     steps:
     - name: 检出代码仓库
@@ -169,10 +159,6 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: '3.13.12'
-        
-    - name: Install system dependencies for GUI build
-      if: matrix.os == 'ubuntu-latest'
-      run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libgstreamer-plugins-base1.0-dev libgstreamer1.0-dev libwebkit2gtk-4.0-dev
         
     - name: 安装 uv
       run: |
@@ -210,8 +196,8 @@ jobs:
         mkdir -p binaries
         
         # 根据平台复制相应的二进制文件
-        case "${{ matrix.platform }}" in
-          Windows)
+        case "${{ matrix.goos }}" in
+          windows)
             find downloaded-binaries -path "*windows*" \( -name "*.dll" \) | while read file; do
               cp "$file" binaries/
               echo "Copied: $file"
@@ -253,15 +239,34 @@ jobs:
           exit 1
         fi
     
-    - name: 编译 GUI 应用
+    - name: 编译 GUI 应用 ( Windows )
+      if: matrix.goos == 'windows'
+      shell: powershell
       run: |
         cd GUI
-        uv run build.py --platform ${{ matrix.platform }}
-        
+        & ./.venv/Script/activate.ps1
+        & python build.py --platform ${{ matrix.goos }}
+
+    - name: 编译 GUI 应用 ( Linux )
+      if: matrix.goos == 'linux'
+      shell: bash
+      run: |
+        cd GUI
+        source ./.venv/bin/activate
+        python build.py --platform ${{ matrix.goos }}
+
+    - name: 编译 GUI 应用 ( MacOS )
+      if: matrix.goos == 'darwin'
+      shell: bash
+      run: |
+        cd GUI
+        source ./.venv/bin/activate
+        python build.py --platform ${{ matrix.goos }}
+
     - name: 上传GUI产物
       uses: actions/upload-artifact@v4
       with:
-        name: gui-${{ matrix.platform }}
+        name: gui-${{ matrix.goos }}
         path: |
           GUI/dist/**
           GUI/dist/*
