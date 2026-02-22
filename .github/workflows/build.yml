@@ -203,13 +203,13 @@ jobs:
               echo "Copied: $file"
             done
             ;;
-          Linux)
-            find downloaded-binaries -path "*ubuntu*" \( -name "*.so" \) | while read file; do
+          linux)
+            find downloaded-binaries -path "*linux*" \( -name "*.so" \) | while read file; do
               cp "$file" binaries/
               echo "Copied: $file"
             done
             ;;
-          MacOS)
+          darwin)
             find downloaded-binaries -path "*macos*" \( -name "*.dylib" \) | while read file; do
               cp "$file" binaries/
               echo "Copied: $file"
