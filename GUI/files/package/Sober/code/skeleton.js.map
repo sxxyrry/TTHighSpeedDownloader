@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["skeleton.js"],
+  "sourcesContent": ["import { useElement } from './core/element.js';\nconst name = 's-skeleton';\nconst style = `:host{display:block;height:16px;animation:skeleton var(--s-motion-duration-extra-long4, 1s) var(--s-motion-easing-standard, cubic-bezier(.2, 0, 0, 1)) infinite;background:linear-gradient(90deg,var(--s-color-surface-container-high, #E7E8EA) 25%,var(--s-color-surface-container-highest, #E1E3E4) 37%,var(--s-color-surface-container-high, #E7E8EA) 63%);background-size:400% 100%;border-radius:8px}@keyframes skeleton{0%{background-position:100% 50%}to{background-position:0 50%}}`\nexport class Skeleton extends useElement({ style }) {\n}\nSkeleton.define(name);\n"],
+  "mappings": "AAAA,OAAS,cAAAA,MAAkB,oBAC3B,MAAMC,EAAO,aACPC,EAAQ,+dACP,MAAMC,UAAiBH,EAAW,CAAE,MAAAE,CAAM,CAAC,CAAE,CACpD,CACAC,EAAS,OAAOF,CAAI",
+  "names": ["useElement", "name", "style", "Skeleton"]
+}

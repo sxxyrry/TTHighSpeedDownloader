@@ -32,7 +32,8 @@ def build():
         f'--name=TTHighSpeedDownloader_GUI_{target_platform}',
         f'--icon={icon_path}' if os.path.exists(icon_path) else '',  # 设置图标
         '--hidden-import=wx',  # 隐式导入wx模块
-        '--hidden-import=webview',  # 隐式导入webview模块
+        '--hidden-import=wxpython',  # 隐式导入wx模块
+        '--hidden-import=pywebview',  # 隐式导入webview模块
         # '--hidden-import=watchdog',  # 隐式导入watchdog模块
         # '--hidden-import=Notice',  # 隐式导入Notice模块
         '--add-data', './files;files' if sys.platform.startswith('win') else './files:files',  # 添加 files 目录

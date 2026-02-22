@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["divider.js"],
+  "sourcesContent": ["import { useElement } from './core/element.js';\nconst name = 's-divider';\nconst style = `:host{display:flex;align-items:center;margin:0 16px;gap:8px;font-size:.75rem;color:var(--s-color-outline, #70787D)}:host:before,:host:after{content:\"\";flex-grow:1;border-top:solid 1px var(--s-color-outline-variant, #C0C8CC)}:host(:empty){gap:0}`\nconst template = `<slot></slot>`\nclass Divider extends useElement({ style, template }) {\n}\nDivider.define(name);\nexport { Divider };\n"],
+  "mappings": "AAAA,OAAS,cAAAA,MAAkB,oBAC3B,MAAMC,EAAO,YACPC,EAAQ,uPACRC,EAAW,gBACjB,MAAMC,UAAgBJ,EAAW,CAAE,MAAAE,EAAO,SAAAC,CAAS,CAAC,CAAE,CACtD,CACAC,EAAQ,OAAOH,CAAI",
+  "names": ["useElement", "name", "style", "template", "Divider"]
+}

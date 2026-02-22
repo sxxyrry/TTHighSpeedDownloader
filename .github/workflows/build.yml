@@ -34,71 +34,53 @@ jobs:
           - os: macos-latest
             ext: .dylib
             goos: darwin
-        exclude:
-          - os: windows-latest
-            arch: arm64
-    
+
     steps:
     - name: 检查用户确认打包/编译应用
       if: github.event_name == 'workflow_dispatch' && github.event.inputs.confirm_build != 'yes'
       run: |
         echo "用户未确认打包/编译应用。跳过打包/编译。"
         exit 0
-        
-    - name: 跳过WindowsArm64
-      if: matrix.os == 'windows-latest' && matrix.arch == 'arm64'
-      shell: bash
-      run: |
-        echo "跳过Windows ARM64"
-        exit 0
 
     - name: 检出代码仓库
       uses: actions/checkout@v4
-      
+      with:
+        working-directory: TTHighSpeedDownloader
+
     - name: 设置 Go 环境
       uses: actions/setup-go@v5
       with:
         go-version: '1.25.4'
-      
+
     - name: 安装 Go 库
       shell: bash
+      working-directory: TTHighSpeedDownloader
       run: |
         go get github.com/gorilla/websocket@v1.5.3
         go mod tidy
         go mod download
-        
+
     - name: 设置环境变量
       shell: bash
       run: |
         echo "GOOS=${{ matrix.goos }}" >> $GITHUB_ENV
         echo "GOARCH=${{ matrix.arch }}" >> $GITHUB_ENV
-          
+
     - name: 安装Windows ARM64交叉编译工具链
       if: matrix.os == 'windows-latest' && matrix.arch == 'arm64'
-      shell: bash
       run: |
-        # 安装MSYS2
-        choco install msys2
-        # # 等待安装完成
-        # sleep 5
-        # 初始化MSYS2并更新包数据库
-        /c/tools/msys64/usr/bin/bash.exe -lc "pacman -Syu --noconfirm"
-        # 再次更新以确保系统是最新的
-        /c/tools/msys64/usr/bin/bash.exe -lc "pacman -Syu --noconfirm"
-        # 安装ARM64交叉编译器（尝试不同的包名）
-        /c/tools/msys64/usr/bin/bash.exe -lc "pacman -S --noconfirm mingw-w64-tools mingw-w64-x86_64-gcc"
-        # 尝试安装ARM64支持（如果可用）
-        /c/tools/msys64/usr/bin/bash.exe -lc "pacman -S --noconfirm mingw-w64-aarch64-gcc 2>/dev/null || pacman -S --noconfirm gcc-aarch64-none-elf 2>/dev/null || echo 'ARM64 cross compiler not available'"
-        # 将编译器路径添加到环境变量
-        echo "C:\tools\msys64\mingw64\bin" >> $GITHUB_PATH
-        # 添加到PATH环境变量
-        echo "PATH=$PATH:/c/tools/msys64/mingw64/bin" >> $GITHUB_ENV
-
+        # Use msys2 to install the correct mingw-w64 toolchain for aarch64
+        msys2-shell -mingw64 -here -c "pacman -Syu --noconfirm"
+        msys2-shell -mingw64 -here -c "pacman -S --noconfirm --needed mingw-w64-x86_64-toolchain mingw-w64-aarch64-toolchain"
+        echo "C:\msys64\mingw64\bin" >> $GITHUB_PATH
+        echo "C:\msys64\mingwaarch64\bin" >> $GITHUB_PATH
+      
     - name: 编译 Go 应用程序
       shell: bash
+      working-directory: TTHighSpeedDownloader
       run: |
-        set -x  # 开启调试模式显示详细命令
-        
+        set -x
+
         EXT=""
         case "${{ matrix.os }}" in
           windows-latest)
@@ -111,23 +93,21 @@ jobs:
             EXT=".dylib"
             ;;
         esac
-        
+
         echo "Building for OS: ${{ matrix.goos }}, Arch: ${{ matrix.arch }}"
-        
-        # Windows ARM64
+
+        # Set compiler based on target
         if [[ "${{ matrix.os }}" == "windows-latest" && "${{ matrix.arch }}" == "arm64" ]]; then
-          # 设置正确的交叉编译环境变量
-          CC=aarch64-w64-mingw32-gcc CGO_ENABLED=1 GOOS=windows GOARCH=arm64 go build -v -buildmode=c-shared -o TTHighSpeedDownloader_${{ matrix.arch }}$EXT .
+          export CC=aarch64-w64-mingw32-gcc
         elif [[ "${{ matrix.os }}" == "ubuntu-latest" && "${{ matrix.arch }}" == "arm64" ]]; then
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu
-          # 设置交叉编译环境变量
-          CC=aarch64-linux-gnu-gcc CGO_ENABLED=1 GOOS=linux GOARCH=arm64 go build -v -buildmode=c-shared -o TTHighSpeedDownloader_${{ matrix.arch }}$EXT .
-        else
-          CGO_ENABLED=1 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.arch }} go build -v -buildmode=c-shared -o TTHighSpeedDownloader_${{ matrix.arch }}$EXT .
+          sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu
+          export CC=aarch64-linux-gnu-gcc
         fi
-        
-        # 检查构建结果
+
+        # Build the application
+        CGO_ENABLED=1 go build -v -buildmode=c-shared -o TTHighSpeedDownloader_${{ matrix.arch }}$EXT .
+
+        # Check build result
         if [ $? -ne 0 ]; then
           echo "Build failed for ${{ matrix.goos }}/${{ matrix.arch }}"
           exit 1
@@ -135,24 +115,15 @@ jobs:
 
     - name: 检查构建产物
       shell: bash
+      working-directory: TTHighSpeedDownloader
       run: |
         ls -la TTHighSpeedDownloader_* || echo "No build artifacts found"
-        
-        # 检查特定架构的产物是否存在
-        if [[ "${{ matrix.os }}" == "macos-latest" && "${{ matrix.arch }}" == "arm64" ]]; then
-          if ls TTHighSpeedDownloader_${{ matrix.arch }}.* 1> /dev/null 2>&1; then
-            echo "ARM64 build artifacts found"
-          else
-            echo "ARM64 build artifacts missing"
-            exit 1
-          fi
-        fi
 
     - name: 上传编译产物
       uses: actions/upload-artifact@v4
       with:
         name: go-binary-${{ matrix.os }}-${{ matrix.arch }}
-        path: TTHighSpeedDownloader_${{ matrix.arch }}.*
+        path: TTHighSpeedDownloader/TTHighSpeedDownloader_${{ matrix.arch }}.*
         if-no-files-found: error
 
   build-gui:

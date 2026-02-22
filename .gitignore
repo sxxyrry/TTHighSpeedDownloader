@@ -9,3 +9,4 @@ dist/*
 dist/
 .venv/
 ToDo
+/some.txt

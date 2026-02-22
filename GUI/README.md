@@ -16,3 +16,10 @@
 - [Marked](https://marked.js.org/)
 
   - 附件：[LICENSE](./files/package/Marked/LICENSE)
+- [Sober](https://soberjs.com/)
+
+  - 附件：[LICENSE](./files/package/Sober/LICENSE)
+- tips 组件
+  - 本组件采用 GNU AGPL v3.0 开源，而非 TTHSD 普通使用的 GNU GPL v3.0 协议。
+
+  - 本组件为 23XR Studio 项目的一部分，最终解释权由 23XR Studio 所有。

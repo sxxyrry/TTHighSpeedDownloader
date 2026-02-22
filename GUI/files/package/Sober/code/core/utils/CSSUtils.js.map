@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["CSSUtils.js"],
+  "sourcesContent": ["export const convertCSSDuration = (value) => {\n    const list = value.trim().match(/^([\\d\\.]+)(s|ms)$/);\n    if (!list)\n        throw new Error();\n    const number = Number(list[1]);\n    if (list[2] === 's')\n        return number * 1000;\n    return number;\n};\n"],
+  "mappings": "AAAO,MAAMA,EAAsBC,GAAU,CACzC,MAAMC,EAAOD,EAAM,KAAK,EAAE,MAAM,mBAAmB,EACnD,GAAI,CAACC,EACD,MAAM,IAAI,MACd,MAAMC,EAAS,OAAOD,EAAK,CAAC,CAAC,EAC7B,OAAIA,EAAK,CAAC,IAAM,IACLC,EAAS,IACbA,CACX",
+  "names": ["convertCSSDuration", "value", "list", "number"]
+}

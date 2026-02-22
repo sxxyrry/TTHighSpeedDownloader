@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["i18n.js"],
+  "sourcesContent": ["export class I18n {\n    list;\n    locale = navigator.language;\n    updates = new Map();\n    constructor(list) {\n        this.list = list;\n    }\n    getItem(name) {\n        name = name || this.locale;\n        if (name in this.list)\n            return this.list[name];\n        const [def] = name.split('-');\n        if (def in this.list)\n            return this.list[def];\n        return this.list.zh;\n    }\n    addItem(name, item) {\n        if (this.list[name])\n            throw new Error(`Locale ${name} already exists`);\n        this.list[name] = item;\n    }\n    setLocale(name) {\n        this.locale = name ?? navigator.language;\n        this.updates.forEach((item) => item());\n    }\n}\n"],
+  "mappings": "AAAO,MAAMA,CAAK,CACd,KACA,OAAS,UAAU,SACnB,QAAU,IAAI,IACd,YAAYC,EAAM,CACd,KAAK,KAAOA,CAChB,CACA,QAAQC,EAAM,CAEV,GADAA,EAAOA,GAAQ,KAAK,OAChBA,KAAQ,KAAK,KACb,OAAO,KAAK,KAAKA,CAAI,EACzB,KAAM,CAACC,CAAG,EAAID,EAAK,MAAM,GAAG,EAC5B,OAAIC,KAAO,KAAK,KACL,KAAK,KAAKA,CAAG,EACjB,KAAK,KAAK,EACrB,CACA,QAAQD,EAAME,EAAM,CAChB,GAAI,KAAK,KAAKF,CAAI,EACd,MAAM,IAAI,MAAM,UAAUA,CAAI,iBAAiB,EACnD,KAAK,KAAKA,CAAI,EAAIE,CACtB,CACA,UAAUF,EAAM,CACZ,KAAK,OAASA,GAAQ,UAAU,SAChC,KAAK,QAAQ,QAASE,GAASA,EAAK,CAAC,CACzC,CACJ",
+  "names": ["I18n", "list", "name", "def", "item"]
+}

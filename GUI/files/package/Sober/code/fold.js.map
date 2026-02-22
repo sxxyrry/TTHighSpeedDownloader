@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["fold.js"],
+  "sourcesContent": ["import { useElement, useProps } from './core/element.js';\nconst name = 's-fold';\nconst props = useProps({\n    folded: false\n});\nconst style = `:host{display:block}.container{display:grid;grid-template-rows:1fr;overflow:hidden;transition:grid-template-rows var(--s-motion-duration-short4, .2s) var(--s-motion-easing-emphasized, cubic-bezier(.2, 0, 0, 1))}:host([folded=true]) .container{grid-template-rows:0fr}.view{display:block;min-height:0;overflow:hidden}`\nconst template = `<slot name=\"trigger\"></slot><div class=\"container\" part=\"container\"><slot class=\"view\" part=\"view\"></slot></div>`\nexport class Fold extends useElement({\n    style, template, props,\n    setup(shadowRoot) {\n        shadowRoot.querySelector('slot[name=trigger]').onclick = () => this.folded = !this.folded;\n    }\n}) {\n}\nFold.define(name);\n"],
+  "mappings": "AAAA,OAAS,cAAAA,EAAY,YAAAC,MAAgB,oBACrC,MAAMC,EAAO,SACPC,EAAQF,EAAS,CACnB,OAAQ,EACZ,CAAC,EACKG,EAAQ,8TACRC,EAAW,mHACV,MAAMC,UAAaN,EAAW,CACjC,MAAAI,EAAO,SAAAC,EAAU,MAAAF,EACjB,MAAMI,EAAY,CACdA,EAAW,cAAc,oBAAoB,EAAE,QAAU,IAAM,KAAK,OAAS,CAAC,KAAK,MACvF,CACJ,CAAC,CAAE,CACH,CACAD,EAAK,OAAOJ,CAAI",
+  "names": ["useElement", "useProps", "name", "props", "style", "template", "Fold", "shadowRoot"]
+}

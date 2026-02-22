@@ -10,14 +10,17 @@ import requests
 import webview
 import uuid
 import threading
-import logging
+import logging # pyright: ignore[reportUnusedImport]
 import configparser
 from Notice import Notice
 import wx # pyright: ignore[reportMissingTypeStubs]
 import webbrowser
 import watch_sim as watch
-# import watch
+import watch
+from TTHSD_interface import TTHSDownloader
 
+
+frozen: bool = getattr(sys, 'frozen', False)
 
 class popupDict(TypedDict):
     title: str
@@ -82,213 +85,202 @@ def save_config(thread_count: int, chunk_size_mb: int, UA: str):
         config.write(configfile)
 
 
-# 定义回调函数类型
-PROGRESS_CALLBACK = ctypes.CFUNCTYPE(None, ctypes.c_void_p, ctypes.c_void_p)
+# 创建下载器实例
+downloader = TTHSDownloader()
 
-# 加载 DLL/SO
-if sys.platform.startswith('win'):  # Windows
-    lib = ctypes.CDLL('./TTHighSpeedDownloader.dll')
-elif sys.platform == 'darwin':  # MacOS
-    lib = ctypes.CDLL('./TTHighSpeedDownloader.dylib')
-elif sys.platform.startswith('linux'):  # Linux
-    lib = ctypes.CDLL('./TTHighSpeedDownloader.so')
-else:
-    raise OSError('Unsupported operating system')
-
-class Task(TypedDict):
-    URL: str
-    SavePath: str
-    ID: uuid.UUID
-
-# 定义函数签名
-lib.startDownload.argtypes = [
-    ctypes.c_char_p,        # tasksData - JSON格式的任务数据
-    ctypes.c_int,           # taskCount - 任务数量
-    ctypes.c_int,           # threadCount
-    ctypes.c_int,           # chunkSizeMB
-    PROGRESS_CALLBACK,      # callback
-    ctypes.c_bool,          # useCallbackURL
-    ctypes.c_char_p,        # userAgent
-    ctypes.c_char_p,        # remoteCallbackUrl
-    ctypes.POINTER(ctypes.c_bool),  # useSocket
-]
-
-# 定义进度回调函数
-last_downloaded = 0
 # 为回调函数添加窗口引用
 callback_window = None
+
+# 添加下载状态跟踪变量
+download_active = False
+download_completed_count = 0
+expected_task_count = 0
+current_downloader_id: int = -1  # 当前下载器ID
 
 class Event(TypedDict):
     Type: Literal['start', 'startOne', 'update', 'end', 'endOne', 'msg']
     Name: str
 
-def callback_func(event_ptr, msg_ptr):
-    global callback_window  # 移除对 last_downloaded 的依赖
+logging.basicConfig(format='{name} ({levelname}, {asctime}): {message}', style='{', level=logging.INFO)
+
+path = './log'
+if frozen:
+    path = os.path.dirname(sys.executable)
+else: 
+    path = './log'
+
+# 确保 log 目录存在
+os.makedirs(path, exist_ok=True)
+
+# 创建文件处理器
+file_handler1 = logging.FileHandler(os.path.join(path, './Downloader.log'), encoding='utf-8')
+file_handler1.setFormatter(logging.Formatter('{name} ({levelname}, {asctime}): {message}', style='{'))
+
+file_handler2 = logging.FileHandler(os.path.join(path, './TTHSDGUI.log'), encoding='utf-8')
+file_handler2.setFormatter(logging.Formatter('{name} ({levelname}, {asctime}): {message}', style='{'))
+
+DownloadLog = logging.getLogger("Downloader")
+DownloadLog.addHandler(file_handler1)
+
+TGLog = logging.getLogger("TTHSDGUI")
+TGLog.addHandler(file_handler2)
+
+def callback_func(event_dict: dict, msg_dict: dict):
+    global callback_window, download_active, download_completed_count, expected_task_count
     
-    # 将 ctypes 指针转换为字节数据，然后解码为 JSON
-    try:
-        # 从指针获取事件数据
-        if event_ptr:
-            event_data = ctypes.cast(event_ptr, ctypes.c_char_p).value
-            event_dict: Event = json.loads(event_data.decode('utf-8')) if event_data else {}
-        else:
-            event_dict = {}
+    # 处理不同类型的消息
+    event_type = event_dict.get('Type', '')
+    event_name = event_dict.get('Name', '')
+    
+    # 构造发送给前端的数据
+    progress_data = {
+        "type": event_type,
+        "name": event_name,
+        "data": msg_dict
+    }
+    
+    if event_type == 'update':
+        total: int = msg_dict.get('Total', 0)
+        downloaded: int = msg_dict.get('Downloaded', 0)
+        speed: float = msg_dict.get('Speed', 0.0)
         
-        # 从指针获取消息数据
-        if msg_ptr:
-            msg_data = ctypes.cast(msg_ptr, ctypes.c_char_p).value
-            msg_dict: dict[Literal["Total", "Downloaded", "Speed"], int | float] | \
-                dict[Literal["Text"], str] | \
-                dict[Literal["Index", "Total", "URL", "ID"], str | int] | \
-                dict[None, None] = json.loads(msg_data.decode('utf-8')) if msg_data else {}
-        else:
-            msg_dict = {}
+        # 更新进度显示
+        DownloadLog.info(f"速度：{speed:.2f} B/s {downloaded}/{total} 字节")
         
-        # 处理不同类型的消息
-        event_type = event_dict.get('Type', '')
-        event_name = event_dict.get('Name', '')
-        
-        # 构造发送给前端的数据
-        progress_data = {
-            "type": event_type,
-            "name": event_name,
-            "data": msg_dict
+        # 添加进度信息
+        progress_data["progress"] = {
+            "downloaded": downloaded,
+            "total": total,
+            "speed": speed,
+            "added": downloaded
         }
         
-        if event_type == 'update':
-            total = msg_dict.get('Total', 0)
-            downloaded = msg_dict.get('Downloaded', 0)  # 使用绝对下载量而非增量
-            speed = msg_dict.get('Speed', 0.0)
-            
-            # 更新进度显示
-            print(f"速度：{speed:.2f} B/s {downloaded}/{total} 字节", end='\r', flush=True)
-            
-            # 添加进度信息
-            progress_data["progress"] = {
-                "downloaded": downloaded,
-                "total": total,
-                "speed": speed,
-                "added": downloaded  # 保留added字段，但实际使用downloaded
-            }
-            
-        elif event_type == 'msg':
-            text = msg_dict.get('Text', '')
-            print(f"\n{event_name}：{text}")
-            
-        elif event_type == 'startOne':
-            url = msg_dict.get('URL', '')
-            task_id = msg_dict.get('ID', '')
-            index = msg_dict.get('Index', 0)
-            total_tasks = msg_dict.get('Total', 0)
-            print(f"\n开始下载：{url}，这是第 {index} 个下载，总共 {total_tasks} 个。")
-            
-        elif event_type == 'start':
-            print(f"\n开始下载")
-            
-        elif event_type == 'endOne':
-            url = msg_dict.get('URL', '')
-            task_id = msg_dict.get('ID', '')
-            index = msg_dict.get('Index', 0)
-            total_tasks = msg_dict.get('Total', 0)
-            print(f"\n下载完成：{url}，这是第 {index} 个下载，总共 {total_tasks} 个。")
-            
-        elif event_type == 'end':
-            print(f"\n下载完成！")
-            
-        # 通过evaluate_js向页面发送进度更新
-        if callback_window:
-            try:
-                # 将数据转换为JSON字符串并发送到前端
-                json_data = json.dumps(progress_data, ensure_ascii=False)
-                callback_window.evaluate_js(f"""
-                    if (typeof handleProgressUpdate === 'function') {{
-                        handleProgressUpdate({json_data});
-                    }}
-                """)
-            except Exception as e:
-                print(f"发送进度更新到前端时出错: {e}")
-            
-    except Exception as e:
-        print(f"\n错误于回调函数中：{e}")
-        # 发送错误信息到前端
-        if callback_window:
-            try:
-                error_data = {
-                    "type": "error",
-                    "message": str(e)
-                }
-                json_data = json.dumps(error_data, ensure_ascii=False)
-                callback_window.evaluate_js(f"""
-                    if (typeof handleProgressUpdate === 'function') {{
-                        handleProgressUpdate({json_data});
-                    }}
-                """)
-            except Exception as send_error:
-                print(f"发送错误信息到前端时出错: {send_error}")
-
-def RunDownload(urls: list[str], savepaths: list[str]):
-    global last_downloaded
-    # 重置全局变量
-    last_downloaded = 0
+    elif event_type == 'msg':
+        text = msg_dict.get('Text', '')
+        DownloadLog.info(f"{event_name}：{text}")
     
-    # 创建回调函数实例
-    progress_cb = PROGRESS_CALLBACK(callback_func)
-
-    # 调用下载函数
-    try:
-        start_time = time.time()
-        # 正确处理useSocket参数
-        use_socket_val = ctypes.c_bool(False)
+    elif event_type == 'err':
+        error = msg_dict.get('Error', '')
+        DownloadLog.info(f"{event_name}：{error}")
         
+    elif event_type == 'startOne':
+        url = msg_dict.get('URL', '')
+        task_id = msg_dict.get('ID', '')
+        index = msg_dict.get('Index', 0)
+        total_tasks = msg_dict.get('Total', 0)
+        DownloadLog.info(f"开始下载：{url}，这是第 {index} 个下载，总共 {total_tasks} 个。")
+        
+        # 开始第一个任务时标记下载活动
+        if not download_active:
+            download_active = True
+        
+    elif event_type == 'start':
+        DownloadLog.info(f"\n开始下载")
+        
+    elif event_type == 'endOne':
+        url = msg_dict.get('URL', '')
+        task_id = msg_dict.get('ID', '')
+        index = msg_dict.get('Index', 0)
+        total_tasks = msg_dict.get('Total', 0)
+        DownloadLog.info(f"下载完成：{url}，这是第 {index} 个下载，总共 {total_tasks} 个。")
+        
+        # 更新完成计数
+        download_completed_count += 1
+        
+    elif event_type == 'end':
+        DownloadLog.info(f"下载完成或被取消")
+        download_active = False  # 标记下载完成
+
+    # 通过evaluate_js向页面发送进度更新
+    if callback_window:
+        try:
+            # 将数据转换为JSON字符串并发送到前端
+            json_data = json.dumps(progress_data, ensure_ascii=False)
+            callback_window.evaluate_js(f"""
+if (typeof handleProgressUpdate === 'function') {{
+    handleProgressUpdate({json_data});
+}}
+""")
+        except Exception as e:
+            DownloadLog.error(f"发送进度更新到前端时出错: {e}")
+
+def RunDownload(urls: list[str], savepaths: list[str]) -> int:
+    global download_active, download_completed_count, expected_task_count, current_downloader_id
+    # 重置全局变量
+    download_active = False
+    download_completed_count = 0
+    expected_task_count = len(urls)
+    current_downloader_id = -1
+
+    try:
         # 加载配置
         config = load_config()
         thread_count = config.getint('DOWNLOAD', 'thread_count', fallback=64)
         chunk_size_mb = config.getint('DOWNLOAD', 'chunk_size_mb', fallback=10)
         UA: str = config.get('DOWNLOAD', 'UA', fallback='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0')
         
-        # 构造任务数据
-        tasks = []
-        for i in range(len(urls)):
-            task = {
-                "URL": urls[i],
-                "SavePath": savepaths[i],
-                "ShowName": savepaths[i].split('/')[-1] if '/' in savepaths[i] else savepaths[i].split('\\')[-1],
-                "ID": str(uuid.uuid4())
-            }
-            tasks.append(task)
+        start_time = time.time()
         
-        # 将任务数据转换为JSON字符串
-        tasks_json = json.dumps(tasks, ensure_ascii=False)
-        b_tasks_json = tasks_json.encode('utf-8')
-        
-        # 准备参数
-        tasks_data = ctypes.c_char_p(b_tasks_json)
-        task_count = ctypes.c_int(len(tasks))
-
-        # 调用Go函数（新的接口）
-        result = lib.startDownload(
-            tasks_data,         # tasksData - JSON格式的任务数据
-            task_count,         # taskCount - 任务数量
-            ctypes.c_int(thread_count),    # threadCount
-            ctypes.c_int(chunk_size_mb),   # chunkSizeMB
-            progress_cb,        # callback
-            False,              # useCallbackURL
-            UA.encode('utf-8'),
-            None,               # remoteCallbackUrl
-            ctypes.byref(use_socket_val)  # useSocket
+        # 使用TTHSDDownloader开始下载
+        downloader_id = downloader.get_downloader(
+            urls=urls,
+            save_paths=savepaths,
+            thread_count=thread_count,
+            chunk_size_mb=chunk_size_mb,
+            callback=callback_func,
+            use_callback_url=False,
+            user_agent=UA,
+            remote_callback_url=None,
+            use_socket=None,
         )
-        print()
-        end_time = time.time()
-        print(f"下载结果：{result}")
-        print(f"下载时间：{end_time - start_time:.2f} 秒")
-        if result > 0:
-            # 调用pauseDownload来清理资源
-            cleanup_result = lib.pauseDownload(result)
-            if cleanup_result != 0:
-                print(f"警告：清理下载器资源失败，ID: {result}")
 
+        if downloader_id < 1:
+            return -1
+
+        current_downloader_id = downloader_id
+        DownloadLog.info(f"下载器创建成功，ID: {downloader_id}")
+
+        def start():
+            try:
+                result = downloader.start_download_by_id(current_downloader_id)
+
+                # 等待下载完成
+                while download_active or download_completed_count < expected_task_count:
+                    time.sleep(0.5)  # 等待0.5秒后再次检查状态
+            
+                DownloadLog.info(f"下载完成，已完成 {download_completed_count} 个任务")
+                end_time = time.time()
+                DownloadLog.info(f"下载器ID：{downloader_id}")
+                DownloadLog.info(f"下载时间：{end_time - start_time:.2f} 秒")
+            
+            except Exception as e:
+                DownloadLog.error(f"错误发生：{e}")
+                # 发送错误信息到前端
+                if callback_window:
+                    try:
+                        error_data = {
+                            "type": "error",
+                            "message": str(e)
+                        }
+                        json_data = json.dumps(error_data, ensure_ascii=False)
+                        callback_window.evaluate_js(f"""
+                            if (typeof handleProgressUpdate === 'function') {{
+                                handleProgressUpdate({json_data});
+                            }}
+                        """)
+                    except Exception as send_error:
+                        DownloadLog.error(f"发送错误信息到前端时出错: {send_error}")
+
+        downloadThread = threading.Thread(
+            target=start,
+            daemon=True
+        )
+        downloadThread.start()
+
+        return downloader_id
+        
     except Exception as e:
-        print(f"错误发生：{e}")
+        DownloadLog.error(f"错误发生：{e}")
         # 发送错误信息到前端
         if callback_window:
             try:
@@ -303,9 +295,35 @@ def RunDownload(urls: list[str], savepaths: list[str]):
                     }}
                 """)
             except Exception as send_error:
-                print(f"发送错误信息到前端时出错: {send_error}")
+                DownloadLog.error(f"发送错误信息到前端时出错: {send_error}")
+        
+        return -1
+
+def cancel_download(downloader_id: int) -> bool:
+    """取消下载"""
+    global current_downloader_id
+    try:
+        if downloader_id > 0:
+            # 使用stopDownload停止下载
+            result = downloader.stop_download(downloader_id)
+            if result:
+                DownloadLog.info(f"下载器 {downloader_id} 已停止")
+                if current_downloader_id == downloader_id:
+                    current_downloader_id = -1
+                return True
+            else:
+                DownloadLog.error(f"停止下载器 {downloader_id} 失败")
+                return False
+        else:
+            return False
+    except Exception as e:
+        DownloadLog.error(f"取消下载时出错: {e}")
+        return False
 
 def main():
+    global frozen
+
+    TGLog.info("Starting TTHSD GUI")
     with open(os.path.join(pathlib.Path(__file__).parent.resolve(), './VersionHistory.txt'), 'r', encoding='utf-8') as file:
         versionHistory: str = file.read()
     
@@ -318,18 +336,28 @@ def main():
     with open(os.path.join(pathlib.Path(__file__).parent.resolve(), './README.md'), 'r', encoding='utf-8') as file:
         README: str = file.read()
 
-    KernelVersion = '0.4.0'
+    KernelVersion = '0.5.0'
 
     class Api:
-        def download(self, urls, savepaths):
-            print("开始下载...")
+        def download(self, urls: list[str], savepaths: list[str]) -> int:
+            DownloadLog.info("开始下载...")
             
-            # 在新线程中运行下载，避免阻塞UI
-            def run_download():
-                RunDownload(urls, savepaths)
-            
-            download_thread = threading.Thread(target=run_download, daemon=True)
-            download_thread.start()
+            return RunDownload(urls=urls, savepaths=savepaths)
+        
+        def cancel_download(self, downloaderID: int) -> dict[str, str | bool]:
+            """取消下载"""
+            try:
+                success = cancel_download(downloaderID)
+                return {
+                    'success': success,
+                    'message': '下载已取消' if success else '取消下载失败'
+                }
+            except Exception as e:
+                DownloadLog.error(f"取消下载时出错: {str(e)}")
+                return {
+                    'success': False,
+                    'message': f'取消下载时出错: {str(e)}'
+                }
 
         def minimize(self):
             """最小化窗口"""
@@ -409,7 +437,7 @@ def main():
                 'message': '成功发送弹窗'
             }
 
-        def selectPath(self, data: selectPathDict | None = None) -> dict[str, str]:  # pyright: ignore[reportUnusedFunction]
+        def selectPath(self, data: selectPathDict | None = None) -> dict[str, str]:  # pyright: ignore[reportRedeclaration, reportUnusedFunction]
             """打开文件夹选择对话框并返回选择的路径"""
             try:
                 # 获取请求数据
@@ -442,7 +470,7 @@ def main():
                 }
 
         def exit(self, status: int = 0):
-            running = False
+            running = False # pyright: ignore[reportUnusedVariable]
             window.destroy()
             os._exit(status=status)
 
@@ -472,7 +500,6 @@ def main():
             save_config(thread_count, chunk_size_mb, UserAgent)
             return True
 
-
     # 在创建webview窗口时注册API
     api = Api()
     window: webview.Window = webview.create_window( # pyright: ignore[reportUnknownMemberType, reportAssignmentType]
@@ -486,24 +513,55 @@ def main():
         resizable=False,
         text_select=True,
     )
+
+    TGLog.info("Created API and Window")
     
     # 设置回调窗口引用
     global callback_window
     callback_window = window
-    # window
 
     running = True
-    
+        
+    TGLog.info('Opening watch')
+
     watch.start(window, running) # pyright: ignore[reportUnknownMemberType]
+
+    TGLog.info('Opened watch')
 
     load_config()
 
-    webview.start(
-        icon=os.path.join(pathlib.Path(__file__).parent.resolve(), f'./files/assets/Image/TTHSD_GUI.{'ico' if sys.platform.startswith('win') else 'icns'}'),
-        debug=not getattr(sys, 'frozen', False),
-    )
+    if '--dev_pyinexe' in sys.argv:
+        frozen = True
+    elif '--dev_pie' in sys.argv:
+        frozen = True
 
-    os._exit(0)
+    TGLog.info('Injecting Window.Closed event')
+
+    def run_():
+        def on_window_closed():
+            TGLog.info('webview closed')
+            time.sleep(0.05)
+            os._exit(0)
+            os._exit(0)
+            os._exit(0)
+            os._exit(0)
+
+        window.events.closed += on_window_closed
+
+    run_()
+
+    def on_window_opened():
+        TGLog.info('webview opened')
+
+    TGLog.info('Injected Window.Closed event')
+
+    TGLog.info('Starting webview')
+    # breakpoint()
+    webview.start(
+        func=on_window_opened,
+        icon=os.path.join(pathlib.Path(__file__).parent.resolve(), f'./files/assets/Image/TTHSD_GUI.{'ico' if sys.platform.startswith('win') else 'icns'}'),
+        debug=not frozen,
+    )
 
     # webview.overrideredirect(True)
        

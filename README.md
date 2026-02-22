@@ -4,7 +4,7 @@ TT High Speed Downloader TT 高速下载器 是一个高性能的多线程文件
 
 ## 功能特性
 
-- 多线程并发下载，提高下载速度
+- 多线程并发下载，高下载速度
 - 支持多个文件下载
 - 实时进度监控和速度计算
 - 暂停和恢复下载功能
@@ -12,6 +12,7 @@ TT High Speed Downloader TT 高速下载器 是一个高性能的多线程文件
 - 提供 C 接口，支持 多语言调用
 - 支持任务信息（ URL、保存路径、显示名称、ID ）
 - 回调是异步的，不会阻塞主线程
+- 支持多个文件并行下载（实验性）
 
 ## 许可证
 
@@ -33,7 +34,7 @@ TT High Speed Downloader TT 高速下载器 是一个高性能的多线程文件
 
 ## API 说明
 
-[API 说明](./docs/API%20Description.md)
+[API 说明](https://docss.sxxyrry.qzz.io/TTHSD/zh/api/APIOverview.html)
 
 ## 使用的 Go 库
 
@@ -80,6 +81,6 @@ TT High Speed Downloader TT 高速下载器 是一个高性能的多线程文件
 - 线程数会根据分块数量自动调整，确保不超过分块数量
 - 回调提供的更新消息下载量是绝对的
 
-## Python 测试用例
+## Python 方便接口 使用示例
 
-[Python 测试用例](./docs/Python%20test%20case.md)
+[Python 方便接口 使用示例](https://docss.sxxyrry.qzz.io/TTHSD/zh/guide/TTHSDINTERFACEUsage.html)

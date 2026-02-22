@@ -3,7 +3,7 @@
 ## Windows
 
     ```bash
-    # 在 FastDownloader 下
+    # 在 TTHighSpeedDownloader 下
     # 清理并更新依赖
     go mod tidy
 
@@ -14,7 +14,7 @@
 ## Linux
 
     ```bash
-    # 在 FastDownloader 下
+    # 在 TTHighSpeedDownloader 下
     # 清理并更新依赖
     go mod tidy
 

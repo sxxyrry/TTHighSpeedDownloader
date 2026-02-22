@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["getStackingContext.js"],
+  "sourcesContent": ["const div = document.createElement('div');\ndiv.setAttribute('style', 'position: fixed;right: 0;bottom: 0;width: 100%;height: 100%;pointer-events: none');\nexport const getStackingContext = (el) => {\n    el.appendChild(div);\n    const DOMRect = div.getBoundingClientRect();\n    el.removeChild(div);\n    return {\n        left: DOMRect.left,\n        top: DOMRect.top,\n        width: DOMRect.width,\n        height: DOMRect.height\n    };\n};\n"],
+  "mappings": "AAAA,MAAMA,EAAM,SAAS,cAAc,KAAK,EACxCA,EAAI,aAAa,QAAS,kFAAkF,EACrG,MAAMC,EAAsBC,GAAO,CACtCA,EAAG,YAAYF,CAAG,EAClB,MAAMG,EAAUH,EAAI,sBAAsB,EAC1C,OAAAE,EAAG,YAAYF,CAAG,EACX,CACH,KAAMG,EAAQ,KACd,IAAKA,EAAQ,IACb,MAAOA,EAAQ,MACf,OAAQA,EAAQ,MACpB,CACJ",
+  "names": ["div", "getStackingContext", "el", "DOMRect"]
+}

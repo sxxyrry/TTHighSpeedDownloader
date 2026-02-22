@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["scroll-view.js"],
+  "sourcesContent": ["import { useElement } from './core/element.js';\nconst name = 's-scroll-view';\nconst style = `:host{display:block;overflow:auto}@media (pointer: fine){:host::-webkit-scrollbar{background:transparent;width:6px;height:6px}:host::-webkit-scrollbar-thumb{background:var(--s-color-outline-variant, #C0C8CC);border-radius:3px}@supports not selector(::-webkit-scrollbar){:host{scrollbar-color:var(--s-color-outline-variant, #C0C8CC) transparent}}}`\nconst template = `<slot></slot>`\nclass ScrollView extends useElement({ style, template }) {\n}\nScrollView.define(name);\nexport { ScrollView };\n"],
+  "mappings": "AAAA,OAAS,cAAAA,MAAkB,oBAC3B,MAAMC,EAAO,gBACPC,EAAQ,6VACRC,EAAW,gBACjB,MAAMC,UAAmBJ,EAAW,CAAE,MAAAE,EAAO,SAAAC,CAAS,CAAC,CAAE,CACzD,CACAC,EAAW,OAAOH,CAAI",
+  "names": ["useElement", "name", "style", "template", "ScrollView"]
+}

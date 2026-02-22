@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["mediaQuery.js"],
+  "sourcesContent": ["export const mediaQueryList = {\n    mobileS: matchMedia(`(max-width: ${320 /* mediaQueries.mobileS */}px)`),\n    mobileM: matchMedia(`(max-width: ${375 /* mediaQueries.mobileM */}px)`),\n    mobileL: matchMedia(`(max-width: ${425 /* mediaQueries.mobileL */}px)`),\n    tablet: matchMedia(`(max-width: ${768 /* mediaQueries.tablet */}px)`),\n    laptop: matchMedia(`(max-width: ${1024 /* mediaQueries.laptop */}px)`),\n    laptopL: matchMedia(`(max-width: ${1440 /* mediaQueries.laptopL */}px)`),\n    pointerCoarse: matchMedia('(pointer: coarse)'),\n    pointerFine: matchMedia('(pointer: fine)')\n};\n"],
+  "mappings": "AAAO,MAAMA,EAAiB,CAC1B,QAAS,WAAW,oBAAkD,EACtE,QAAS,WAAW,oBAAkD,EACtE,QAAS,WAAW,oBAAkD,EACtE,OAAQ,WAAW,oBAAiD,EACpE,OAAQ,WAAW,qBAAkD,EACrE,QAAS,WAAW,qBAAmD,EACvE,cAAe,WAAW,mBAAmB,EAC7C,YAAa,WAAW,iBAAiB,CAC7C",
+  "names": ["mediaQueryList"]
+}

@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["badge.js"],
+  "sourcesContent": ["import { useElement } from './core/element.js';\nconst name = 's-badge';\nconst style = `:host{display:inline-flex;justify-content:center;align-items:center;width:8px;height:8px;border-radius:8px;font-size:.625rem;vertical-align:middle;box-sizing:border-box;background:var(--s-color-error, #BA1A1A);color:var(--s-color-on-error, #ffffff)}:host(:not(:empty)) .text{height:16px;padding:0 5px;display:flex;position:relative;justify-content:center;align-items:center;background:inherit;color:inherit;box-shadow:inherit;border-radius:8px}`\nconst template = `<slot class=\"text\" part=\"text\"></slot>`\nclass Badge extends useElement({ style, template }) {\n}\nBadge.define(name);\nexport { Badge };\n"],
+  "mappings": "AAAA,OAAS,cAAAA,MAAkB,oBAC3B,MAAMC,EAAO,UACPC,EAAQ,+bACRC,EAAW,yCACjB,MAAMC,UAAcJ,EAAW,CAAE,MAAAE,EAAO,SAAAC,CAAS,CAAC,CAAE,CACpD,CACAC,EAAM,OAAOH,CAAI",
+  "names": ["useElement", "name", "style", "template", "Badge"]
+}
