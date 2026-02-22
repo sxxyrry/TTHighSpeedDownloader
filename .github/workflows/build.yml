@@ -15,6 +15,10 @@ on:
         description: '确认打包/编译应用（输入 "yes" 确认）'
         required: false
         default: 'yes'
+      confirm_build_go:
+        description: '确认打包/编译应用（输入 "yes" 确认）'
+        required: false
+        default: 'yes'
 
 jobs:
   build-go:
@@ -40,6 +44,11 @@ jobs:
       if: github.event_name == 'workflow_dispatch' && github.event.inputs.confirm_build != 'yes'
       run: |
         echo "用户未确认打包/编译应用。跳过打包/编译。"
+        exit 0
+    - name: 检查用户确认编译 Go 应用
+      if: github.event_name == 'workflow_dispatch' && github.event.inputs.confirm_build_go != 'yes'
+      run: |
+        echo "用户未确认编译 Go 应用。跳过编译。"
         exit 0
 
     - name: 检出代码仓库
@@ -120,8 +129,8 @@ jobs:
         if-no-files-found: error
 
   build-gui:
-    name: 编译 GUI 应用 (${{ matrix.platform }})
-    runs-on: ${{ matrix.os }}  # 此处依赖 matrix.os，需在 strategy.matrix 中定义
+    name: 编译 GUI 应用 (${{ matrix.arch }}) 在 ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     needs: build-go
     strategy:
       matrix:
@@ -153,7 +162,7 @@ jobs:
     - name: 设置 Python 环境
       uses: actions/setup-python@v5
       with:
-        python-version: '3.13.7'
+        python-version: '3.13.12'
         
     - name: 安装 uv
       run: |
@@ -161,6 +170,7 @@ jobs:
 
     - name: 同步环境
       run: |
+        cd GUI
         uv sync
 
     - name: 下载所有Go二进制文件
