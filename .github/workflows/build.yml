@@ -15,10 +15,6 @@ on:
         description: '确认打包/编译应用（输入 "yes" 确认）'
         required: false
         default: 'yes'
-      confirm_build_go:
-        description: '确认打包/编译应用（输入 "yes" 确认）'
-        required: false
-        default: 'yes'
 
 jobs:
   build-go:
@@ -138,11 +134,21 @@ jobs:
         arch: [amd64, arm64]
         include:
           - os: windows-latest
+            platform: Windows
             goos: windows
           - os: ubuntu-latest
+            platform: Linux
             goos: linux
           - os: macos-latest
+            platform: MacOS
             goos: darwin
+        exclude:
+          - os: ubuntu-latest
+            arch: arm64
+          - os: macos-latest
+            arch: arm64
+          - os: windows-latest
+            arch: arm64
 
     steps:
     - name: 检出代码仓库
@@ -163,6 +169,10 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: '3.13.12'
+        
+    - name: Install system dependencies for GUI build
+      if: matrix.os == 'ubuntu-latest'
+      run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libgstreamer-plugins-base1.0-dev libgstreamer1.0-dev libwebkit2gtk-4.0-dev
         
     - name: 安装 uv
       run: |
