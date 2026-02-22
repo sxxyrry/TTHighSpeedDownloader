@@ -125,41 +125,22 @@ jobs:
     needs: build-go
     strategy:
       matrix:
-        platform: [Windows]
-        arch: [amd64]
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        arch: [amd64, arm64]
         include:
-          - platform: Windows
-            os: windows-latest
-          # - platform: Linux
-          #   os: ubuntu-latest
-          # - platform: MacOS
-          #   os: macos-latest
-        exclude:
-          - platform: Windows
-            arch: amd64
-            # os: windows-latest
-        # exclude:
-        #   - platform: Windows
-        #     arch: arm64
-        #   - platform: Linux
-        #     os: ubuntu-latest
-        #     arch: arm64
-        #   - platform: Linux
-        #     os: ubuntu-latest
-        #     arch: amd64
-        #   - platform: MacOS
-        #     os: macos-latest
-        #     arch: arm64
-        #   - platform: MacOS
-        #     os: macos-latest
-        #     arch: amd64
+          - os: windows-latest
+            goos: windows
+          - os: ubuntu-latest
+            goos: linux
+          - os: macos-latest
+            goos: darwin
 
     steps:
     - name: 检出代码仓库
       uses: actions/checkout@v4
     
     - name: 修复目录权限
-      if: matrix.platform == 'MacOS'
+      if: matrix.goos == 'darwin'
       run: |
         cd GUI
         mkdir -p dist
@@ -174,10 +155,14 @@ jobs:
       with:
         python-version: '3.13.7'
         
-    - name: 安装 Nuitka
+    - name: 安装 uv
       run: |
-        pip install nuitka
-        
+        pip install uv
+
+    - name: 同步环境
+      run: |
+        uv sync
+
     - name: 下载所有Go二进制文件
       uses: actions/download-artifact@v4
       with:
@@ -251,8 +236,7 @@ jobs:
     - name: 编译 GUI 应用
       run: |
         cd GUI
-        # 让
-        python build.py --platform ${{ matrix.platform }}
+        uv run build.py --platform ${{ matrix.platform }}
         
     - name: 上传GUI产物
       uses: actions/upload-artifact@v4
