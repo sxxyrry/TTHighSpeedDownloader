@@ -65,12 +65,11 @@ jobs:
 
     - name: 安装Windows ARM64交叉编译工具链
       if: matrix.os == 'windows-latest' && matrix.arch == 'arm64'
+      shell: bash
       run: |
-        # Use msys2 to install the correct mingw-w64 toolchain for aarch64
-        msys2-shell -mingw64 -here -c "pacman -Syu --noconfirm"
-        msys2-shell -mingw64 -here -c "pacman -S --noconfirm --needed mingw-w64-x86_64-toolchain mingw-w64-aarch64-toolchain"
-        echo "C:\msys64\mingw64\bin" >> $GITHUB_PATH
-        echo "C:\msys64\mingwaarch64\bin" >> $GITHUB_PATH
+        pacman -Syu --noconfirm
+        pacman -S --noconfirm clang
+        echo "C:\msys64\usr\bin" >> $GITHUB_PATH
       
     - name: 编译 Go 应用程序
       shell: bash
@@ -94,7 +93,7 @@ jobs:
 
         # Set compiler based on target
         if [[ "${{ matrix.os }}" == "windows-latest" && "${{ matrix.arch }}" == "arm64" ]]; then
-          export CC=aarch64-w64-mingw32-gcc
+          export CC=clang
         elif [[ "${{ matrix.os }}" == "ubuntu-latest" && "${{ matrix.arch }}" == "arm64" ]]; then
           sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu
           export CC=aarch64-linux-gnu-gcc
