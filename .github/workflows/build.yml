@@ -68,7 +68,7 @@ jobs:
       uses: msys2/setup-msys2@v2
       with:
         msystem: MINGW64
-        install: clang
+        install: mingw-w64-x86_64-zig
       
     - name: 编译 Go 应用程序
       shell: bash
@@ -92,7 +92,7 @@ jobs:
 
         # Set compiler based on target
         if [[ "${{ matrix.os }}" == "windows-latest" && "${{ matrix.arch }}" == "arm64" ]]; then
-          export CC=clang
+          export CC="zig cc -target aarch64-windows-gnu"
         elif [[ "${{ matrix.os }}" == "ubuntu-latest" && "${{ matrix.arch }}" == "arm64" ]]; then
           sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu
           export CC=aarch64-linux-gnu-gcc
