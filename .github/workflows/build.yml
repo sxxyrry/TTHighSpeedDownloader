@@ -130,13 +130,13 @@ jobs:
     needs: build-go
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [windows-latest, macos-latest]
         arch: [amd64, arm64]
         include:
           - os: windows-latest
             goos: windows
-          - os: ubuntu-latest
-            goos: linux
+          # - os: ubuntu-latest
+          #   goos: linux
           - os: macos-latest
             goos: darwin
 
@@ -247,13 +247,13 @@ jobs:
         & ./.venv/Script/activate.ps1
         & python build.py --platform ${{ matrix.goos }}
 
-    - name: 编译 GUI 应用 ( Linux )
-      if: matrix.goos == 'linux'
-      shell: bash
-      run: |
-        cd GUI
-        source ./.venv/bin/activate
-        python build.py --platform ${{ matrix.goos }}
+    # - name: 编译 GUI 应用 ( Linux )
+    #   if: matrix.goos == 'linux'
+    #   shell: bash
+    #   run: |
+    #     cd GUI
+    #     source ./.venv/bin/activate
+    #     python build.py --platform ${{ matrix.goos }}
 
     - name: 编译 GUI 应用 ( MacOS )
       if: matrix.goos == 'darwin'
