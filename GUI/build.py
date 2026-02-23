@@ -2,6 +2,7 @@ import argparse
 import subprocess
 import os
 import sys
+import pathlib
 
 
 def build():
@@ -11,8 +12,7 @@ def build():
     args = parser.parse_args()
     
     # 获取当前脚本目录
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    icon_path = os.path.join(current_dir, './files/assets/Image/TTHSD_GUI.ico')
+    # current_dir = os.path.dirname(os.path.abspath(__file__))
     
     # 确定目标平台
     target_platform = args.platform
@@ -23,6 +23,8 @@ def build():
             target_platform = 'darwin'
         else:
             target_platform = 'linux'
+
+    icon_path = os.path.join(pathlib.Path(__file__).resolve().parent, f'./files/assets/Image/TTHSD_GUI.{'ico' if target_platform.startswith('win') else 'icns'}')
 
     # 构建PyInstaller命令参数
     pyinstaller_args = [

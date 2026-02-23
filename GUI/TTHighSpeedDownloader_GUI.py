@@ -559,7 +559,7 @@ def main():
     # breakpoint()
     webview.start(
         func=on_window_opened,
-        icon=os.path.join(pathlib.Path(__file__).parent.resolve(), f'./files/assets/Image/TTHSD_GUI.{'ico' if sys.platform.startswith('win') else 'icns'}'),
+        icon=os.path.join(pathlib.Path(__file__).resolve().parent, f'./files/assets/Image/TTHSD_GUI.{'ico' if sys.platform.startswith('win') else 'icns'}'),
         debug=not frozen,
     )
 
