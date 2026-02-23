@@ -16,7 +16,7 @@ from Notice import Notice
 import wx # pyright: ignore[reportMissingTypeStubs]
 import webbrowser
 import watch_sim as watch
-import watch
+# import watch
 from TTHSD_interface import TTHSDownloader
 
 
