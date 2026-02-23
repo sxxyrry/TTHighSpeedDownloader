@@ -159,6 +159,12 @@ jobs:
       run: |
         pip install uv
 
+    - name: 安装 GTK+ 开发依赖 (Linux)
+      if: matrix.goos == 'linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libgl1-mesa-dev libnotify-dev
+
     - name: 同步环境
       run: |
         cd GUI
