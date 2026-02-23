@@ -28,9 +28,16 @@ def build():
     pyinstaller_args = [
         'pyinstaller',
         '--onefile',  # 生成单个可执行文件
-        # '--windowed',  # 不显示控制台窗口（Windows下）
+        '--windowed',  # 不显示控制台窗口（Windows下）
         f'--name=TTHighSpeedDownloader_GUI_{target_platform}',
-        f'--icon={icon_path}' if os.path.exists(icon_path) else '',  # 设置图标
+    ]
+    
+    # 添加图标参数（如果图标文件存在）
+    if os.path.exists(icon_path):
+        pyinstaller_args.append(f'--icon={icon_path}')
+    
+    # 添加其他参数
+    pyinstaller_args.extend([
         '--hidden-import=wx',  # 隐式导入wx模块
         '--hidden-import=wxpython',  # 隐式导入wx模块
         '--hidden-import=pywebview',  # 隐式导入webview模块
@@ -40,7 +47,7 @@ def build():
         '--add-data', './VersionHistory.txt;.' if sys.platform.startswith('win') else './VersionHistory.txt:.',  # 添加版本历史文件
         '--add-data', './Notice.py;.' if sys.platform.startswith('win') else './Notice.py:.',  # 添加 Notice
         '--add-data', './README.md;.' if sys.platform.startswith('win') else './README.md:.',  # 添加 README.md 文件
-    ]
+    ])
     
     for i in ['./TTHighSpeedDownloader.dll', './TTHighSpeedDownloader.so', './TTHighSpeedDownloader.dylib']:
         if os.path.exists(i):

@@ -41,11 +41,6 @@ jobs:
       run: |
         echo "用户未确认打包/编译应用。跳过打包/编译。"
         exit 0
-    - name: 检查用户确认编译 Go 应用
-      if: github.event_name == 'workflow_dispatch' && github.event.inputs.confirm_build_go != 'yes'
-      run: |
-        echo "用户未确认编译 Go 应用。跳过编译。"
-        exit 0
 
     - name: 检出代码仓库
       uses: actions/checkout@v4
@@ -130,13 +125,13 @@ jobs:
     needs: build-go
     strategy:
       matrix:
-        os: [windows-latest, macos-latest]
+        os: [windows-latest, ubuntu-latest, macos-latest]
         arch: [amd64, arm64]
         include:
           - os: windows-latest
             goos: windows
-          # - os: ubuntu-latest
-          #   goos: linux
+          - os: ubuntu-latest
+            goos: linux
           - os: macos-latest
             goos: darwin
 
@@ -233,9 +228,45 @@ jobs:
         cp -r binaries/* GUI/binaries/
         echo "Files copied to GUI/binaries directory"
         
-        # 验证复制结果
-        if [ ! -d "GUI/binaries" ] || [ $(ls -A GUI/binaries | wc -l) -eq 0 ]; then
-          echo "Error: Failed to copy files to GUI/binaries directory"
+        # 进入GUI目录并重命名二进制文件，以便 build.py 能够找到
+        cd GUI
+        case "${{ matrix.goos }}" in
+          windows)
+            # 复制并重命名 Windows DLL 文件到当前目录
+            for file in binaries/TTHighSpeedDownloader_*.dll; do
+              if [ -f "$file" ]; then
+                cp "$file" "TTHighSpeedDownloader.dll"
+                echo "Copied and renamed: $file -> TTHighSpeedDownloader.dll"
+              fi
+            done
+            ;;
+          linux)
+            # 复制并重命名 Linux SO 文件到当前目录
+            for file in binaries/TTHighSpeedDownloader_*.so; do
+              if [ -f "$file" ]; then
+                cp "$file" "TTHighSpeedDownloader.so"
+                echo "Copied and renamed: $file -> TTHighSpeedDownloader.so"
+              fi
+            done
+            ;;
+          darwin)
+            # 复制并重命名 macOS DYLIB 文件到当前目录
+            for file in binaries/TTHighSpeedDownloader_*.dylib; do
+              if [ -f "$file" ]; then
+                cp "$file" "TTHighSpeedDownloader.dylib"
+                echo "Copied and renamed: $file -> TTHighSpeedDownloader.dylib"
+              fi
+            done
+            ;;
+        esac
+        
+        # 验证重命名结果 - 检查当前目录是否有重命名后的文件
+        echo "Checking for renamed files in current directory:"
+        ls -la TTHighSpeedDownloader.* 2>/dev/null || echo "No renamed files found in current directory"
+        
+        # 检查是否至少有一个重命名后的文件存在
+        if [ ! -f "TTHighSpeedDownloader.dll" ] && [ ! -f "TTHighSpeedDownloader.so" ] && [ ! -f "TTHighSpeedDownloader.dylib" ]; then
+          echo "Error: Failed to rename binary files for build.py"
           exit 1
         fi
     
@@ -244,20 +275,20 @@ jobs:
       shell: powershell
       run: |
         cd GUI
-        & ./.venv/Script/activate.ps1
+        & ./.venv/Scripts/activate.ps1
         & python build.py --platform ${{ matrix.goos }}
 
-    # - name: 编译 GUI 应用 ( Linux )
-    #   if: matrix.goos == 'linux'
-    #   shell: bash
-    #   run: |
-    #     cd GUI
-    #     source ./.venv/bin/activate
-    #     python build.py --platform ${{ matrix.goos }}
+    - name: 编译 GUI 应用 ( Linux )
+      if: matrix.goos == 'linux'
+      shell: bash
+      run: |
+        cd GUI
+        source ./.venv/bin/activate
+        python build.py --platform ${{ matrix.goos }}
 
     - name: 编译 GUI 应用 ( MacOS )
       if: matrix.goos == 'darwin'
-      shell: bash
+      shell: bash 
       run: |
         cd GUI
         source ./.venv/bin/activate
@@ -266,7 +297,7 @@ jobs:
     - name: 上传GUI产物
       uses: actions/upload-artifact@v4
       with:
-        name: gui-${{ matrix.goos }}
+        name: gui-${{ matrix.goos }}-${{ matrix.arch }}
         path: |
           GUI/dist/**
           GUI/dist/*
@@ -320,12 +351,12 @@ jobs:
         # 生成构建号 (YYYYMMDD.HHMMSS)
         build_number = datetime.now().strftime("%Y%m%d.%H%M%S")
         
-        print('"version={version}" >> $GITHUB_OUTPUT')
-        print('"build_number={build_number}" >> $GITHUB_OUTPUT')
-
-        os.system(f'"version={version}" >> $GITHUB_OUTPUT')
-        os.system(f'"build_number={build_number}" >> $GITHUB_OUTPUT')
-
+        # 设置 GitHub Actions 输出
+        import os
+        with open(os.environ['GITHUB_OUTPUT'], 'a') as fh:
+            print(f'version={version}', file=fh)
+            print(f'build_number={build_number}', file=fh)
+        
         print(f"Version: {version}, Build: {build_number}")
         
     - name: 打包各平台完整发行版
@@ -336,21 +367,24 @@ jobs:
         
         # Windows 版本
         mkdir -p "release/TTHighSpeedDownloader-windows-$FULL_VERSION"
-        cp -r artifacts/gui-Windows/* "release/TTHighSpeedDownloader-windows-$FULL_VERSION/" 2>/dev/null || true
+        cp -r artifacts/gui-windows-amd64/* "release/TTHighSpeedDownloader-windows-$FULL_VERSION/" 2>/dev/null || true
+        cp -r artifacts/gui-windows-arm64/* "release/TTHighSpeedDownloader-windows-$FULL_VERSION/" 2>/dev/null || true
         cp artifacts/go-binary-windows-latest-amd64/* "release/TTHighSpeedDownloader-windows-$FULL_VERSION/" 2>/dev/null || true
         cp artifacts/go-binary-windows-latest-arm64/* "release/TTHighSpeedDownloader-windows-$FULL_VERSION/" 2>/dev/null || true
         cd release && zip -r "packages/TTHighSpeedDownloader-windows-$FULL_VERSION.zip" "TTHighSpeedDownloader-windows-$FULL_VERSION"
         
         # Linux 版本
         mkdir -p "release/TTHighSpeedDownloader-linux-$FULL_VERSION"
-        cp -r artifacts/gui-Linux/* "release/TTHighSpeedDownloader-linux-$FULL_VERSION/" 2>/dev/null || true
+        cp -r artifacts/gui-linux-amd64/* "release/TTHighSpeedDownloader-linux-$FULL_VERSION/" 2>/dev/null || true
+        cp -r artifacts/gui-linux-arm64/* "release/TTHighSpeedDownloader-linux-$FULL_VERSION/" 2>/dev/null || true
         cp artifacts/go-binary-ubuntu-latest-amd64/* "release/TTHighSpeedDownloader-linux-$FULL_VERSION/" 2>/dev/null || true
         cp artifacts/go-binary-ubuntu-latest-arm64/* "release/TTHighSpeedDownloader-linux-$FULL_VERSION/" 2>/dev/null || true
         tar -czf "release/packages/TTHighSpeedDownloader-linux-$FULL_VERSION.tar.gz" -C release "TTHighSpeedDownloader-linux-$FULL_VERSION"
         
         # macOS 版本
         mkdir -p "release/TTHighSpeedDownloader-macos-$FULL_VERSION"
-        cp -r artifacts/gui-MacOS/* "release/TTHighSpeedDownloader-macos-$FULL_VERSION/" 2>/dev/null || true
+        cp -r artifacts/gui-darwin-amd64/* "release/TTHighSpeedDownloader-macos-$FULL_VERSION/" 2>/dev/null || true
+        cp -r artifacts/gui-darwin-arm64/* "release/TTHighSpeedDownloader-macos-$FULL_VERSION/" 2>/dev/null || true
         cp artifacts/go-binary-macos-latest-amd64/* "release/TTHighSpeedDownloader-macos-$FULL_VERSION/" 2>/dev/null || true
         cp artifacts/go-binary-macos-latest-arm64/* "release/TTHighSpeedDownloader-macos-$FULL_VERSION/" 2>/dev/null || true
         tar -czf "release/packages/TTHighSpeedDownloader-macos-$FULL_VERSION.tar.gz" -C release "TTHighSpeedDownloader-macos-$FULL_VERSION"
