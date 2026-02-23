@@ -22,15 +22,15 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [windows-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
         arch: [amd64, arm64]
         include:
           - os: windows-latest
             ext: .dll
             goos: windows
-          # - os: ubuntu-latest
-          #   ext: .so
-          #   goos: linux
+          - os: ubuntu-latest
+            ext: .so
+            goos: linux
           - os: macos-latest
             ext: .dylib
             goos: darwin
@@ -125,13 +125,13 @@ jobs:
     needs: build-go
     strategy:
       matrix:
-        os: [windows-latest, ubuntu-latest, macos-latest]
+        os: [windows-latest, macos-latest]
         arch: [amd64, arm64]
         include:
           - os: windows-latest
             goos: windows
-          - os: ubuntu-latest
-            goos: linux
+          # - os: ubuntu-latest
+          #   goos: linux
           - os: macos-latest
             goos: darwin
 
