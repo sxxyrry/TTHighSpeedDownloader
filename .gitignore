@@ -8,5 +8,10 @@ build/
 dist/*
 dist/
 .venv/
+*.exe
+
+
 ToDo
 /some.txt
+
+docs/Git-Workflow-Guide.md

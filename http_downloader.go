@@ -16,56 +16,56 @@ import (
 
 const stallTimeout = 30 * time.Second
 
-// HTTPDownloader is a high-performance, concurrent downloader.
+var ErrUserCancelled = errors.New("download cancelled by user")
+
+// HTTPDownloader 高性能 HTTP 下载器
 type HTTPDownloader struct {
 	BaseDownloader
-	client *http.Client
-	monitor *PerformanceMonitor // 性能监控器
+	client  *http.Client
+	monitor *PerformanceMonitor
 }
 
-// 定义自定义错误
-var ErrUserCancelled = errors.New("End by user self.")
-
-// NewHTTPDownloader creates a new instance of the HTTP downloader.
+// NewHTTPDownloader 创建 HTTP 下载器实例
 func NewHTTPDownloader(config *DownloadConfig) *HTTPDownloader {
-	// Custom transport to allow fine-grained control over connections.
 	transport := &http.Transport{
 		Proxy:                 http.ProxyFromEnvironment,
-		MaxIdleConns:          config.ThreadCount * 2, // 增加空闲连接数
-		MaxIdleConnsPerHost:   config.ThreadCount,     // 每个主机最大空闲连接
-		MaxConnsPerHost:       config.ThreadCount * 2, // 每个主机最大连接数
+		MaxIdleConns:          config.ThreadCount * 2,
+		MaxIdleConnsPerHost:   config.ThreadCount,
+		MaxConnsPerHost:       config.ThreadCount * 2,
 		IdleConnTimeout:       90 * time.Second,
 		TLSHandshakeTimeout:   10 * time.Second,
 		ExpectContinueTimeout: 1 * time.Second,
-		DisableCompression:    true,                   // 禁用压缩，避免CPU开销
-		ForceAttemptHTTP2:     true,                   // 启用HTTP/2
-		ReadBufferSize:        64 * 1024,              // 64KB读缓冲区
-		WriteBufferSize:       64 * 1024,              // 64KB写缓冲区
+		DisableCompression:    true,
+		ForceAttemptHTTP2:     true,
+		ReadBufferSize:        64 * 1024,
+		WriteBufferSize:       64 * 1024,
 		DialContext: (&net.Dialer{
 			Timeout:   30 * time.Second,
 			KeepAlive: 30 * time.Second,
 		}).DialContext,
 	}
 
-	var d = &HTTPDownloader{
+	return &HTTPDownloader{
 		BaseDownloader: BaseDownloader{
-			config: config,
+			config:  config,
+			running: true,
 		},
 		client: &http.Client{
 			Transport: transport,
 		},
-		monitor: GetGlobalMonitor(), // 使用全局性能监控器
+		monitor: GetGlobalMonitor(),
 	}
-	d.running = true
-	return d
 }
 
-// Download starts the concurrent download process.
+// Download 开始下载
 func (d *HTTPDownloader) Download(ctx context.Context, task DownloadTask) error {
-	if !d.running {
-		return ErrUserCancelled
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
 	}
-	fileSize, err := d.getFileSize(task.URL)
+
+	fileSize, err := d.getFileSize(ctx, task.URL)
 	if err != nil {
 		return fmt.Errorf("failed to get file size: %w", err)
 	}
@@ -77,65 +77,44 @@ func (d *HTTPDownloader) Download(ctx context.Context, task DownloadTask) error 
 	defer file.Close()
 
 	if err := file.Truncate(fileSize); err != nil {
-		return fmt.Errorf("failed to pre-allocate file size: %w", err)
+		return fmt.Errorf("failed to pre-allocate file: %w", err)
 	}
 
-	var (
-		chunkSize      = int64(d.config.ChunkSizeMB * 1024 * 1024)
-		chunks         = d.createChunks(fileSize, chunkSize)
-		chunkChan      = make(chan DownloadChunk, len(chunks))
-		wg             sync.WaitGroup
-		downloadedSize int64
-		mu             sync.Mutex // For protecting downloadedSize
-	)
-
+	chunkSize := int64(d.config.ChunkSizeMB * 1024 * 1024)
+	chunks := d.createChunks(fileSize, chunkSize, d.config.ThreadCount)
+	chunkChan := make(chan DownloadChunk, len(chunks))
 	for _, chunk := range chunks {
 		chunkChan <- chunk
 	}
 	close(chunkChan)
 
-	// Determine number of workers based on CPU cores and configuration.
-	numWorkers := runtime.NumCPU() * 2 // Default to 2x CPU cores for better concurrency
-	if d.config.ThreadCount > 0 {
-		numWorkers = d.config.ThreadCount // Allow override
+	var (
+		wg             sync.WaitGroup
+		downloadedSize int64
+		mu             sync.Mutex
+	)
+
+	numWorkers := d.config.ThreadCount
+	if numWorkers <= 0 {
+		numWorkers = runtime.NumCPU() * 2
 	}
-	// Cap the maximum workers to avoid excessive resource usage
 	if numWorkers > 32 {
 		numWorkers = 32
 	}
 
 	for i := 0; i < numWorkers; i++ {
-		if !d.running {
-			return ErrUserCancelled
-		}
 		wg.Add(1)
 		go func(workerID int) {
-			if !d.running {
-				return
-			}
 			defer wg.Done()
-			for {
+			for chunk := range chunkChan {
 				select {
 				case <-ctx.Done():
 					return
-				case chunk, ok := <-chunkChan:
-					if !ok {
-						return
-					}
-					if !d.running {
-						return
-					}
-
-					if err := d.downloadChunk(ctx, task, file, chunk, &downloadedSize, fileSize, &mu); err != nil {
-						if errors.Is(err, ErrUserCancelled) {
-							return
-						}
-						d.sendErrorMessage(fmt.Sprintf("Worker %d failed to download chunk %d-%d: %v. Re-queuing.", workerID, chunk.StartOffset, chunk.EndOffset, err))
-						// Re-queue the failed chunk. In a more robust implementation,
-						// you might want a separate channel for retries with a limit.
-						// For simplicity here, we'll just log the error.
-						// To re-queue: chunkChan <- chunk (would require channel to be open)
-					}
+				default:
+				}
+				err := d.downloadChunk(ctx, task, file, chunk, &downloadedSize, fileSize, &mu)
+				if err != nil && !errors.Is(err, context.Canceled) {
+					d.sendErrorMessage(fmt.Sprintf("worker %d failed: %v", workerID, err))
 				}
 			}
 		}(i)
@@ -143,130 +122,101 @@ func (d *HTTPDownloader) Download(ctx context.Context, task DownloadTask) error 
 
 	wg.Wait()
 
-	// Check if all chunks were downloaded
-	if atomic.LoadInt64(&downloadedSize) != fileSize && d.running {
-		return fmt.Errorf("download incomplete: expected %d bytes, got %d", fileSize, downloadedSize)
+	if atomic.LoadInt64(&downloadedSize) != fileSize && ctx.Err() == nil {
+		return fmt.Errorf("download incomplete: %d/%d bytes", downloadedSize, fileSize)
 	}
-
-	return nil
+	return ctx.Err()
 }
 
+// downloadChunk 下载单个分块
 func (d *HTTPDownloader) downloadChunk(ctx context.Context, task DownloadTask, file *os.File, chunk DownloadChunk, downloadedSize *int64, totalSize int64, mu *sync.Mutex) error {
-	if !d.running {
-		return ErrUserCancelled
-	}
 	req, err := http.NewRequestWithContext(ctx, "GET", task.URL, nil)
 	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
+		return err
 	}
 	req.Header.Set("Range", fmt.Sprintf("bytes=%d-%d", chunk.StartOffset, chunk.EndOffset))
 	req.Header.Set("User-Agent", UA)
 	req.Header.Set("Accept", "*/*")
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
-	req.Header.Set("Accept-Encoding", "identity") // 避免压缩
+	req.Header.Set("Accept-Encoding", "identity")
 	req.Header.Set("Cache-Control", "no-cache")
 
 	resp, err := d.client.Do(req)
 	if err != nil {
-		return fmt.Errorf("http request failed: %w", err)
+		return err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("bad status code: %d", resp.StatusCode)
+		return fmt.Errorf("bad status: %d", resp.StatusCode)
 	}
 
-	// Watchdog implementation
 	lastRead := time.Now()
 	stalled := make(chan bool, 1)
-
-	if !d.running {
-		return ErrUserCancelled
-	}
 	go func() {
-		if !d.running {
-			return
-		}
+		ticker := time.NewTicker(5 * time.Second)
+		defer ticker.Stop()
 		for {
-			time.Sleep(5 * time.Second) // Check every 5 seconds
-			if time.Since(lastRead) > stallTimeout {
-				stalled <- true
+			select {
+			case <-ctx.Done():
 				return
-			}
-			// If context is canceled, stop the watchdog
-			if ctx.Err() != nil {
-				return
-			}
-			if !d.running {
-				return
+			case <-ticker.C:
+				if time.Since(lastRead) > stallTimeout {
+					select {
+					case stalled <- true:
+					default:
+					}
+					return
+				}
 			}
 		}
 	}()
 
-	// Wrap the response body to monitor read activity
 	progressReader := &ProgressReader{
 		Reader: resp.Body,
 		OnRead: func(n int) {
-			mu.Lock()
 			atomic.AddInt64(downloadedSize, int64(n))
-			lastRead = time.Now() // Update activity timestamp
+			lastRead = time.Now()
 			d.sendProgressUpdate(atomic.LoadInt64(downloadedSize), totalSize, task.ID)
-			mu.Unlock()
+			if d.monitor != nil {
+				d.monitor.AddBytes(int64(n))
+			}
 		},
 	}
 
-	if !d.running {
-		return ErrUserCancelled
-	}
-	// Use a MultiWriter to simultaneously write to the file and discard to trigger the reader
 	writer := io.NewOffsetWriter(file, chunk.StartOffset)
-	buf := make([]byte, 128*1024) // 128KB buffer, increased for better throughput
+	buf := make([]byte, 128*1024)
 
 	for {
 		select {
 		case <-stalled:
-			resp.Body.Close() // Force kill the connection
-			return fmt.Errorf("connection stalled for over %v", stallTimeout)
+			return fmt.Errorf("connection stalled")
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
-			if !d.running {
-				return ErrUserCancelled
-			}
 			n, err := progressReader.Read(buf)
 			if n > 0 {
 				if _, writeErr := writer.Write(buf[:n]); writeErr != nil {
-					return fmt.Errorf("file write failed: %w", writeErr)
-				}
-				// 记录性能数据
-				if d.monitor != nil {
-					d.monitor.AddBytes(int64(n))
-				}
-				if !d.running {
-					return ErrUserCancelled
+					return writeErr
 				}
 			}
 			if err == io.EOF {
-				return nil // Chunk finished
+				return nil
 			}
 			if err != nil {
-				return fmt.Errorf("read failed: %w", err)
+				return err
 			}
 		}
 	}
 }
 
-// getFileSize retrieves the size of the file to be downloaded.
-func (d *HTTPDownloader) getFileSize(url string) (int64, error) {
-	req, err := http.NewRequest("HEAD", url, nil)
+// getFileSize 获取文件大小
+func (d *HTTPDownloader) getFileSize(ctx context.Context, url string) (int64, error) {
+	req, err := http.NewRequestWithContext(ctx, "HEAD", url, nil)
 	if err != nil {
 		return 0, err
 	}
 	req.Header.Set("User-Agent", UA)
-	req.Header.Set("Accept", "*/*")
-	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
-	req.Header.Set("Accept-Encoding", "identity") // 避免压缩
-	req.Header.Set("Cache-Control", "no-cache")
 
 	resp, err := d.client.Do(req)
 	if err != nil {
@@ -275,42 +225,24 @@ func (d *HTTPDownloader) getFileSize(url string) (int64, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return 0, fmt.Errorf("HEAD request failed: status %s", resp.Status)
+		return 0, fmt.Errorf("HEAD failed: %s", resp.Status)
 	}
-
-	fileSize := resp.ContentLength
-	if fileSize <= 0 {
-		return 0, fmt.Errorf("invalid content length: %d", fileSize)
+	if resp.ContentLength <= 0 {
+		return 0, fmt.Errorf("invalid content length: %d", resp.ContentLength)
 	}
-
-	return fileSize, nil
+	return resp.ContentLength, nil
 }
 
-// createChunks divides the file into a list of chunks.
-func (d *HTTPDownloader) createChunks(fileSize, chunkSize int64) []DownloadChunk {
-	if !d.running {
-		return nil
-	}
-	
-	// Adjust chunk size based on file size and thread count for better concurrency
-	numWorkers := runtime.NumCPU() * 2
-	if d.config.ThreadCount > 0 {
-		numWorkers = d.config.ThreadCount
-	}
-	if numWorkers > 32 {
-		numWorkers = 32
-	}
-	
-	// Ensure we have at least as many chunks as workers for optimal parallelism
-	minChunks := numWorkers * 2
+// createChunks 生成分块列表
+func (d *HTTPDownloader) createChunks(fileSize, chunkSize int64, threadCount int) []DownloadChunk {
+	// 根据线程数动态调整分块大小，确保至少有 threadCount*2 个分块
+	minChunks := threadCount * 2
 	if fileSize/int64(minChunks) > chunkSize {
 		chunkSize = fileSize / int64(minChunks)
-		// Ensure chunk size is at least 1MB
 		if chunkSize < 1024*1024 {
 			chunkSize = 1024 * 1024
 		}
 	}
-	
 	var chunks []DownloadChunk
 	for offset := int64(0); offset < fileSize; offset += chunkSize {
 		end := offset + chunkSize - 1
@@ -322,34 +254,40 @@ func (d *HTTPDownloader) createChunks(fileSize, chunkSize int64) []DownloadChunk
 	return chunks
 }
 
+// sendProgressUpdate 发送进度更新
 func (d *HTTPDownloader) sendProgressUpdate(downloaded, total int64, taskID string) {
-	sendMessage(Event{Type: EventTypeUpdate, ID: taskID},
-		map[string]interface{}{
-			"Downloaded": downloaded,
-			"Total":      total,
-		}, d.config, d.wsClient, d.socketClient)
+	sendMessage(Event{
+		Type: EventTypeUpdate,
+		ID:   taskID,
+	}, map[string]interface{}{
+		"Downloaded": downloaded,
+		"Total":      total,
+	}, d.config, d.wsClient, d.socketClient)
 }
 
-func (d *HTTPDownloader) sendErrorMessage(message string) {
-	sendMessage(Event{Type: EventTypeErr, Name: "Error"},
-		map[string]interface{}{
-			"Error": message,
-		}, d.config, d.wsClient, d.socketClient)
+// sendErrorMessage 发送错误消息
+func (d *HTTPDownloader) sendErrorMessage(msg string) {
+	sendMessage(Event{
+		Type: EventTypeErr,
+		Name: "Error",
+	}, map[string]interface{}{
+		"Error": msg,
+	}, d.config, d.wsClient, d.socketClient)
 }
 
-// GetType returns the downloader type.
+// GetType 返回下载器类型
 func (d *HTTPDownloader) GetType() string {
 	return "http"
 }
 
-// Cancel 基础的取消方法
+// Cancel 取消下载（实现 Downloader 接口）
 func (d *HTTPDownloader) Cancel(downloader Downloader) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 	d.running = false
 }
 
-// ProgressReader is a wrapper for io.Reader to track progress.
+// ProgressReader 包装 io.Reader 以跟踪进度
 type ProgressReader struct {
 	io.Reader
 	OnRead func(n int)
