@@ -1,5 +1,10 @@
 # TT High Speed Downloader TT 高速下载器 ![1767417802741](images/README/1767417802741.png)
 
+> [!TIP]
+> 本项目因为技术栈转变已经停止开发，不再更新，也不会发布任何新的版本。
+> 
+> 本项目新存储库请去 [TTHSDNext](https://github.com/sxxyrry/TTHSDNext)
+
 TT High Speed Downloader TT 高速下载器 是一个高性能的多线程文件下载器，支持并发下载、断点续传和进度监控。该项目使用 Go 语言开发。编译为 dll 或者 so （可惜作者不知道发布Linux之类的要编译多少个 so 文件）供全平台、全语言调用。
 
 ## 功能特性

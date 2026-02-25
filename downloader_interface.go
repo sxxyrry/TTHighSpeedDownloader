@@ -11,6 +11,7 @@ type Downloader interface {
     Download(ctx context.Context, task DownloadTask) error
     GetType() string
     Cancel(event Downloader)
+    GetSnapshot() interface{} // 添加获取状态快照的方法
 }
 
 // BaseDownloader 包含下载器的公共属性
@@ -36,4 +37,9 @@ func (bd *BaseDownloader) Cancel(downloader Downloader) {
     bd.mutex.Lock()
     defer bd.mutex.Unlock()
     bd.running = false
+}
+
+// GetSnapshot 基础的快照方法（默认实现）
+func (bd *BaseDownloader) GetSnapshot() interface{} {
+    return nil
 }

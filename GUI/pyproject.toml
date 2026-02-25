@@ -11,6 +11,7 @@ dependencies = [
     "websockets>=15.0.1",
     "wxpython>=4.2.4",
     "pyinstaller>=6.16.0",
+    "cefpython3>=66.1",
 ]
 
 [dependency-groups]

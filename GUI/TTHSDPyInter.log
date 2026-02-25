@@ -2,3 +2,7 @@ TTHSDPyInter (INFO, 2026-02-23 15:20:18): Loading DLL: ./TTHighSpeedDownloader.d
 TTHSDPyInter (INFO, 2026-02-23 15:20:18): Loaded DLL: ./TTHighSpeedDownloader.dll
 TTHSDPyInter (INFO, 2026-02-23 15:20:18): Defining function signatures for DLL: ./TTHighSpeedDownloader.dll
 TTHSDPyInter (INFO, 2026-02-23 15:20:18): Defined function signatures for DLL: ./TTHighSpeedDownloader.dll
+TTHSDPyInter (INFO, 2026-02-24 20:48:40): Loading DLL: ./TTHighSpeedDownloader.dll
+TTHSDPyInter (INFO, 2026-02-24 20:48:40): Loaded DLL: ./TTHighSpeedDownloader.dll
+TTHSDPyInter (INFO, 2026-02-24 20:48:40): Defining function signatures for ./TTHighSpeedDownloader.dll
+TTHSDPyInter (INFO, 2026-02-24 20:48:40): Function signatures defined

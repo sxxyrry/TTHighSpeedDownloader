@@ -18,31 +18,109 @@ const stallTimeout = 30 * time.Second
 
 var ErrUserCancelled = errors.New("download cancelled by user")
 
+// DownloadSnapshot 实时进度快照（类似 Rust 的 DownloadSnapshot）
+type DownloadSnapshot struct {
+	Downloaded           int64   `json:"downloaded"`
+	TotalSize            int64   `json:"total_size"`
+	ProgressPercentage   float64 `json:"progress_percentage"`
+	IsFinished           bool    `json:"is_finished"`
+	ErrorMessage         string  `json:"error_message,omitempty"`
+	CurrentSpeedBPS      float64 `json:"current_speed_bps"`
+	AverageSpeedBPS      float64 `json:"average_speed_bps"`
+	ElapsedSeconds       float64 `json:"elapsed_seconds"`
+}
+
+// DownloadStatus 状态管理（类似 Rust 的 DownloadStatus）
+type DownloadStatus struct {
+	totalSize    int64
+	downloaded   int64
+	errorMessage string
+	startTime    time.Time
+	mu           sync.RWMutex
+}
+
+func NewDownloadStatus(totalSize int64) *DownloadStatus {
+	return &DownloadStatus{
+		totalSize: totalSize,
+		startTime: time.Now(),
+	}
+}
+
+func (ds *DownloadStatus) SetError(msg string) {
+	ds.mu.Lock()
+	defer ds.mu.Unlock()
+	ds.errorMessage = msg
+}
+
+func (ds *DownloadStatus) GetError() string {
+	ds.mu.RLock()
+	defer ds.mu.RUnlock()
+	return ds.errorMessage
+}
+
+func (ds *DownloadStatus) AddDownloaded(bytes int64) {
+	ds.mu.Lock()
+	defer ds.mu.Unlock()
+	ds.downloaded += bytes
+}
+
+func (ds *DownloadStatus) GetDownloaded() int64 {
+	ds.mu.RLock()
+	defer ds.mu.RUnlock()
+	return ds.downloaded
+}
+
+func (ds *DownloadStatus) Snapshot(currentSpeed, averageSpeed float64) DownloadSnapshot {
+	ds.mu.RLock()
+	defer ds.mu.RUnlock()
+
+	progressPercentage := 0.0
+	if ds.totalSize > 0 {
+		progressPercentage = (float64(ds.downloaded) / float64(ds.totalSize)) * 100.0
+	}
+
+	isFinished := ds.downloaded >= ds.totalSize || ds.errorMessage != ""
+
+	return DownloadSnapshot{
+		Downloaded:         ds.downloaded,
+		TotalSize:          ds.totalSize,
+		ProgressPercentage: progressPercentage,
+		IsFinished:         isFinished,
+		ErrorMessage:       ds.errorMessage,
+		CurrentSpeedBPS:    currentSpeed,
+		AverageSpeedBPS:    averageSpeed,
+		ElapsedSeconds:     time.Since(ds.startTime).Seconds(),
+	}
+}
+
 // HTTPDownloader 高性能 HTTP 下载器
 type HTTPDownloader struct {
 	BaseDownloader
 	client  *http.Client
 	monitor *PerformanceMonitor
+	status  *DownloadStatus
 }
 
 // NewHTTPDownloader 创建 HTTP 下载器实例
 func NewHTTPDownloader(config *DownloadConfig) *HTTPDownloader {
+	// 优化超时设置，参考 Rust 实现：连接 15s，读取数据块 30s
 	transport := &http.Transport{
 		Proxy:                 http.ProxyFromEnvironment,
 		MaxIdleConns:          config.ThreadCount * 2,
 		MaxIdleConnsPerHost:   config.ThreadCount,
 		MaxConnsPerHost:       config.ThreadCount * 2,
 		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
+		TLSHandshakeTimeout:   15 * time.Second,
 		ExpectContinueTimeout: 1 * time.Second,
 		DisableCompression:    true,
 		ForceAttemptHTTP2:     true,
 		ReadBufferSize:        64 * 1024,
 		WriteBufferSize:       64 * 1024,
 		DialContext: (&net.Dialer{
-			Timeout:   30 * time.Second,
+			Timeout:   15 * time.Second,
 			KeepAlive: 30 * time.Second,
 		}).DialContext,
+		ResponseHeaderTimeout: 30 * time.Second,
 	}
 
 	return &HTTPDownloader{
@@ -52,6 +130,7 @@ func NewHTTPDownloader(config *DownloadConfig) *HTTPDownloader {
 		},
 		client: &http.Client{
 			Transport: transport,
+			Timeout:   0, // 使用 context 控制超时
 		},
 		monitor: GetGlobalMonitor(),
 	}
@@ -69,6 +148,9 @@ func (d *HTTPDownloader) Download(ctx context.Context, task DownloadTask) error 
 	if err != nil {
 		return fmt.Errorf("failed to get file size: %w", err)
 	}
+
+	// 初始化 DownloadStatus
+	d.status = NewDownloadStatus(fileSize)
 
 	file, err := os.Create(task.SavePath)
 	if err != nil {
@@ -92,6 +174,7 @@ func (d *HTTPDownloader) Download(ctx context.Context, task DownloadTask) error 
 		wg             sync.WaitGroup
 		downloadedSize int64
 		mu             sync.Mutex
+		lastUpdateTime time.Time
 	)
 
 	numWorkers := d.config.ThreadCount
@@ -101,6 +184,19 @@ func (d *HTTPDownloader) Download(ctx context.Context, task DownloadTask) error 
 	if numWorkers > 32 {
 		numWorkers = 32
 	}
+
+	lastUpdateTime = time.Now()
+
+	// 启动错误监控
+	errorsChan := make(chan error, numWorkers)
+	go func() {
+		for err := range errorsChan {
+			if err != nil && !errors.Is(err, context.Canceled) {
+				d.status.SetError(err.Error())
+				d.sendErrorMessage(fmt.Sprintf("worker error: %v", err))
+			}
+		}
+	}()
 
 	for i := 0; i < numWorkers; i++ {
 		wg.Add(1)
@@ -112,24 +208,26 @@ func (d *HTTPDownloader) Download(ctx context.Context, task DownloadTask) error 
 					return
 				default:
 				}
-				err := d.downloadChunk(ctx, task, file, chunk, &downloadedSize, fileSize, &mu)
-				if err != nil && !errors.Is(err, context.Canceled) {
-					d.sendErrorMessage(fmt.Sprintf("worker %d failed: %v", workerID, err))
+				err := d.downloadChunk(ctx, task, file, chunk, &downloadedSize, fileSize, &mu, &lastUpdateTime)
+				if err != nil {
+					errorsChan <- fmt.Errorf("worker %d failed: %w", workerID, err)
 				}
 			}
 		}(i)
 	}
 
 	wg.Wait()
+	close(errorsChan)
 
-	if atomic.LoadInt64(&downloadedSize) != fileSize && ctx.Err() == nil {
-		return fmt.Errorf("download incomplete: %d/%d bytes", downloadedSize, fileSize)
+	currentSize := atomic.LoadInt64(&downloadedSize)
+	if currentSize != fileSize && ctx.Err() == nil && d.status.GetError() == "" {
+		return fmt.Errorf("download incomplete: %d/%d bytes", currentSize, fileSize)
 	}
 	return ctx.Err()
 }
 
 // downloadChunk 下载单个分块
-func (d *HTTPDownloader) downloadChunk(ctx context.Context, task DownloadTask, file *os.File, chunk DownloadChunk, downloadedSize *int64, totalSize int64, mu *sync.Mutex) error {
+func (d *HTTPDownloader) downloadChunk(ctx context.Context, task DownloadTask, file *os.File, chunk DownloadChunk, downloadedSize *int64, totalSize int64, mu *sync.Mutex, lastUpdateTime *time.Time) error {
 	req, err := http.NewRequestWithContext(ctx, "GET", task.URL, nil)
 	if err != nil {
 		return err
@@ -172,14 +270,25 @@ func (d *HTTPDownloader) downloadChunk(ctx context.Context, task DownloadTask, f
 		}
 	}()
 
+	// 批量更新阈值（类似 Rust 的 512KB）
+	const batchUpdateThreshold = 512 * 1024
+
+	// 本地累积下载量，减少原子操作频率
+	localDownloaded := int64(0)
+
 	progressReader := &ProgressReader{
 		Reader: resp.Body,
 		OnRead: func(n int) {
-			atomic.AddInt64(downloadedSize, int64(n))
+			localDownloaded += int64(n)
 			lastRead = time.Now()
-			d.sendProgressUpdate(atomic.LoadInt64(downloadedSize), totalSize, task.ID)
-			if d.monitor != nil {
-				d.monitor.AddBytes(int64(n))
+
+			// 降低原子操作频率：只在大块下载后更新
+			if localDownloaded >= batchUpdateThreshold {
+				atomic.AddInt64(downloadedSize, localDownloaded)
+				if d.monitor != nil {
+					d.monitor.AddBytes(localDownloaded)
+				}
+				localDownloaded = 0
 			}
 		},
 	}
@@ -201,6 +310,13 @@ func (d *HTTPDownloader) downloadChunk(ctx context.Context, task DownloadTask, f
 				}
 			}
 			if err == io.EOF {
+				// 写入剩余的累积下载量
+				if localDownloaded > 0 {
+					atomic.AddInt64(downloadedSize, localDownloaded)
+					if d.monitor != nil {
+						d.monitor.AddBytes(localDownloaded)
+					}
+				}
 				return nil
 			}
 			if err != nil {
@@ -252,6 +368,22 @@ func (d *HTTPDownloader) createChunks(fileSize, chunkSize int64, threadCount int
 		chunks = append(chunks, DownloadChunk{StartOffset: offset, EndOffset: end})
 	}
 	return chunks
+}
+
+// GetSnapshot 获取下载状态快照（类似 Rust 的 snapshot 方法）
+func (d *HTTPDownloader) GetSnapshot() interface{} {
+	if d.status == nil {
+		return DownloadSnapshot{}
+	}
+
+	var currentSpeed, averageSpeed float64
+	if d.monitor != nil {
+		stats := d.monitor.GetStats()
+		currentSpeed = stats["current_speed_bps"].(float64)
+		averageSpeed = stats["average_speed_bps"].(float64)
+	}
+
+	return d.status.Snapshot(currentSpeed, averageSpeed)
 }
 
 // sendProgressUpdate 发送进度更新

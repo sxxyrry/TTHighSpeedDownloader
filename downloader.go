@@ -300,3 +300,14 @@ func (hsd *HSDownloader) StopDownload() error {
 
 	return nil
 }
+
+// GetSnapshot 获取当前下载状态快照
+func (hsd *HSDownloader) GetSnapshot(taskID string) interface{} {
+	// 这里可以返回当前活动的下载器状态
+	// 由于当前架构中每个任务都是独立的下载器实例，
+	// 这个方法可以扩展为返回所有任务的状态或特定任务的状态
+	if monitor := GetGlobalMonitor(); monitor != nil {
+		return monitor.GetStats()
+	}
+	return nil
+}

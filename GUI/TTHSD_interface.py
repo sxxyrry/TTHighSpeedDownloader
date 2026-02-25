@@ -69,7 +69,7 @@ class _Logger:
 
     def set_format(self, fmt: str) -> None:
         """设置日志格式，必须包含 {time}, {level}, {name}, {message}"""
-        required = {'{time}', '{level}', '{name}', '{message}'}
+        required = {'time', 'level', 'name', 'message'}
         if not required.issubset(set(self._extract_format_keys(fmt))):
             raise ValueError('Format must contain {time}, {level}, {name}, {message}')
         self.format = fmt

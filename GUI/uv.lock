@@ -21,6 +21,15 @@ wheels = [
 ]
 
 [[package]]
+name = "cefpython3"
+version = "66.1"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a2/42/a9f3fc0a8f8220789bd64a2f48bbafa23581811922069793750f8366c3bd/cefpython3-66.1-py2.py3-none-win32.whl", hash = "sha256:3cf0dc13b4e9aa1c7f028e7f1bfe4e7fca6e677f18574f4ef9346f5d48853f51", size = 65172649, upload-time = "2021-02-16T20:11:57.441Z" },
+    { url = "https://files.pythonhosted.org/packages/3b/d4/f313221a999e4d295cc8fcb15fc4ac9c98f6759e50735d6f6ce84fd3e98a/cefpython3-66.1-py2.py3-none-win_amd64.whl", hash = "sha256:afe1bcde78cbd3790370f4a51cbca37de8bff761de0452f8b8a3b22971bed82a", size = 68996832, upload-time = "2021-02-16T20:12:06.111Z" },
+]
+
+[[package]]
 name = "certifi"
 version = "2025.11.12"
 source = { registry = "https://pypi.org/simple" }
@@ -369,6 +378,7 @@ name = "tthsdownloadergui"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "cefpython3" },
     { name = "pyinstaller" },
     { name = "pywebview" },
     { name = "requests" },
@@ -383,6 +393,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "cefpython3", specifier = ">=66.1" },
     { name = "pyinstaller", specifier = ">=6.16.0" },
     { name = "pywebview", specifier = ">=6.1" },
     { name = "requests", specifier = ">=2.32.5" },

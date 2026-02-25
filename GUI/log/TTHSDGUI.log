@@ -12,3 +12,12 @@ TTHSDGUI (INFO, 2026-02-23 15:20:18,047): Opened watch
 TTHSDGUI (INFO, 2026-02-23 15:20:18,049): Injecting Window.Closed event
 TTHSDGUI (INFO, 2026-02-23 15:20:18,049): Injected Window.Closed event
 TTHSDGUI (INFO, 2026-02-23 15:20:18,049): Starting webview
+TTHSDGUI (INFO, 2026-02-24 20:48:40,355): Starting TTHSD GUI
+TTHSDGUI (INFO, 2026-02-24 20:48:40,357): Created API and Window
+TTHSDGUI (INFO, 2026-02-24 20:48:40,358): Opening watch
+TTHSDGUI (INFO, 2026-02-24 20:48:40,358): Opened watch
+TTHSDGUI (INFO, 2026-02-24 20:48:40,359): Injecting Window.Closed event
+TTHSDGUI (INFO, 2026-02-24 20:48:40,359): Injected Window.Closed event
+TTHSDGUI (INFO, 2026-02-24 20:48:40,359): Starting webview
+TTHSDGUI (INFO, 2026-02-24 20:48:41,087): webview opened
+TTHSDGUI (INFO, 2026-02-24 21:47:44,471): webview closed
